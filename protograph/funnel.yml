@@ -1,0 +1,100 @@
+- label: TaskCreatedEvent
+  match:
+    type: TASK_CREATED
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      splice:
+        - task
+
+- label: TaskStateEvent
+  match:
+    type: TASK_STATE
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+        state: "{{state}}"
+
+
+- label: TaskStartTime
+  match:
+    type: TASK_START_TIME
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+        startTime: "{{startTime}}"
+
+- label: TaskEndTime
+  match:
+    type: TASK_END_TIME
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+        startTime: "{{endTime}}"
+
+- label: TaskOutputs
+  match:
+    type: TASK_OUTPUTS
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: TaskMetadata
+  match:
+    type: TASK_METADATA
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: ExecutorStartTime
+  match:
+    type: EXECUTOR_START_TIME
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: ExecutorEndTime
+  match:
+    type: EXECUTOR_END_TIME
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: ExecutorExitCode
+  match:
+    type: EXECUTOR_EXIT_CODE
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: ExecutorStdout
+  match:
+    type: EXECUTOR_STDOUT
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: ExecutorStderr
+  match:
+    type: EXECUTOR_STDERR
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
+
+- label: SystemLog
+  match:
+    type: SYSTEM_LOG
+  vertexes:
+    - label: Task
+      gid: "task:{{id}}"
+      data:
