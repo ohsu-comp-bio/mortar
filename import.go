@@ -5,6 +5,7 @@ import (
   "github.com/golang/protobuf/proto"
   "github.com/bmeg/arachne/aql"
   "github.com/ohsu-comp-bio/mortar/events"
+  "github.com/ohsu-comp-bio/mortar/graph"
   "github.com/ohsu-comp-bio/tes"
   "github.com/ohsu-comp-bio/funnel/config"
   "github.com/ohsu-comp-bio/funnel/logger"
@@ -51,7 +52,8 @@ func main() {
     task := &tes.Task{}
 
     v, err := cli.GetVertex(graphid, ev.Id)
-    if err == nil && v != nil {
+    if err == nil && v != nil && v.Data != nil {
+      log.Info("unmarshal data", v.Data)
       unmarshal(v.Data, task)
     }
 
@@ -66,6 +68,48 @@ func main() {
     })
     if err != nil {
       log.Error("error adding vertex", err)
+    }
+
+    switch ev.Type {
+    case events.Type_TASK_CREATED:
+      task := ev.GetTask()
+
+      for k, v := range task.Tags {
+        err := cli.AddVertex(graphid, *graph.NewTagVertex(k, v))
+        if err != nil {
+          log.Error("error adding vertex", err)
+        }
+      }
+
+      for _, input := range task.Inputs {
+        err := cli.AddVertex(graphid, *graph.NewFileVertex(input.Url))
+        if err != nil {
+          log.Error("error adding vertex", err)
+        }
+      }
+
+      for _, output := range task.Outputs {
+        err := cli.AddVertex(graphid, *graph.NewFileVertex(output.Url))
+        if err != nil {
+          log.Error("error adding vertex", err)
+        }
+      }
+
+      for _, exec := range task.Executors {
+        err := cli.AddVertex(graphid, *graph.NewImageVertex(exec.Image))
+        if err != nil {
+          log.Error("error adding vertex", err)
+        }
+      }
+
+    case events.Type_TASK_OUTPUTS:
+      outputs := ev.GetOutputs().Value
+      for _, output := range outputs {
+        err := cli.AddVertex(graphid, *graph.NewFileVertex(output.Url))
+        if err != nil {
+          log.Error("error adding vertex", err)
+        }
+      }
     }
   }
 }
