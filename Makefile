@@ -62,3 +62,6 @@ lint:
 # Install dev. utils
 deps:
 	@go get github.com/alecthomas/gometalinter
+
+test:
+	go test ./...
