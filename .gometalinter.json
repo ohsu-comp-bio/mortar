@@ -1,0 +1,16 @@
+{
+  "Linters": {
+    "vet": {
+      "Command": "go tool vet -composites=false"
+    }
+  },
+  "Enable": [
+    "vet",
+    "golint",
+    "gofmt",
+    "goimports",
+    "deadcode",
+    "goconst",
+    "misspell"
+  ]
+}

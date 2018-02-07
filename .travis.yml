@@ -1,0 +1,32 @@
+os:
+  - linux
+language: go
+go:
+  - 1.8
+sudo: required
+
+services:
+  - docker
+
+cache:
+  directories:
+    - $GOPATH/pkg
+
+git:
+  submodules: false
+
+install:
+  - make install
+
+jobs:
+  include:
+    - stage: all
+      script: make lint
+      env:
+        - n=lint
+    - script: make test
+      env:
+        - n=test
+
+notifications:
+  email: false

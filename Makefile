@@ -1,4 +1,22 @@
+VERSION = 0.1.0
 
+GO_CODE=$(shell find . -name '*go' -not -name '*pb.go')
+
+V=github.com/ohsu-comp-bio/mortar/version
+VERSION_LDFLAGS=\
+ -X "$(V).BuildDate=$(shell date)" \
+ -X "$(V).GitCommit=$(shell git rev-parse --short HEAD)" \
+ -X "$(V).GitBranch=$(shell git symbolic-ref -q --short HEAD)" \
+ -X "$(V).GitUpstream=$(shell git remote get-url $(shell git config branch.$(shell git symbolic-ref -q --short HEAD).remote) 2> /dev/null)" \
+ -X "$(V).Version=$(VERSION)"
+
+
+# Build the code
+install:
+	@touch version/version.go
+	@go install -ldflags '$(VERSION_LDFLAGS)' github.com/ohsu-comp-bio/mortar
+
+# Compile protobuf to Go
 proto:
 	protoc \
 		-I ./ \
@@ -20,4 +38,27 @@ start-arachne:
 start-funnel:
 	funnel server run --config dev/funnel-kafka.config.yml
 
+# Build binaries for all OS/Architectures
+cross-compile:
+	@echo '=== Cross compiling... ==='
+	@mkdir -p build/bin
+	@for GOOS in darwin linux; do \
+		for GOARCH in amd64; do \
+			GOOS=$$GOOS GOARCH=$$GOARCH go build -a \
+				-ldflags '$(VERSION_LDFLAGS)' \
+				-o build/bin/mortar-$$GOOS-$$GOARCH .; \
+		done; \
+	done
 
+# Automatially update code formatting
+tidy:
+	@goimports -w $(GO_CODE)
+	@gofmt -w $(GO_CODE)
+
+# Run code style and other checks
+lint:
+	@gometalinter -e ".*pb.go" ./...
+
+# Install dev. utils
+deps:
+	@go get github.com/alecthomas/gometalinter
