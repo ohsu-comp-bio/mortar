@@ -11,7 +11,6 @@ VERSION_LDFLAGS=\
  -X "$(V).Version=$(VERSION)"
 
 
-# Build the code
 install:
 	@touch version/version.go
 	@go install -ldflags '$(VERSION_LDFLAGS)' github.com/ohsu-comp-bio/mortar
@@ -61,6 +60,7 @@ lint:
 
 # Install dev. utils
 deps:
+	@go get -d github.com/ohsu-comp-bio/mortar
 	@go get github.com/alecthomas/gometalinter
 
 test:
