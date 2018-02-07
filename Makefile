@@ -60,7 +60,7 @@ lint:
 # Install dev. utils
 deps:
 	@go get -d github.com/ohsu-comp-bio/mortar
-	@go get github.com/alecthomas/gometalinter.v2
+	@go get -u gopkg.in/alecthomas/gometalinter.v2
 	@gometalinter.v2 --install
 
 test:
