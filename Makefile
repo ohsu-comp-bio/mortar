@@ -55,12 +55,13 @@ tidy:
 
 # Run code style and other checks
 lint:
-	@gometalinter -e ".*pb.go" ./...
+	@gometalinter.v2 -e ".*pb.go" ./...
 
 # Install dev. utils
 deps:
 	@go get -d github.com/ohsu-comp-bio/mortar
-	@go get github.com/alecthomas/gometalinter
+	@go get github.com/alecthomas/gometalinter.v2
+	@gometalinter.v2 --install
 
 test:
 	go test ./...
