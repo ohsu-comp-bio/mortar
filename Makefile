@@ -1,5 +1,4 @@
 VERSION = 0.1.0
-
 GO_CODE=$(shell find . -name '*go' -not -name '*pb.go')
 
 V=github.com/ohsu-comp-bio/mortar/version
@@ -65,3 +64,27 @@ deps:
 
 test:
 	go test ./...
+
+# Build docker image.
+docker: cross-compile
+	mkdir -p build/docker
+	cp build/bin/mortar-linux-amd64 build/docker/mortar
+	cp docker/* build/docker/
+	cd build/docker/ && docker build -t ohsucompbio/mortar .
+
+clean-release:
+	rm -rf ./build/release
+
+build-release: clean-release cross-compile docker
+	# NOTE! Making a release requires manual steps.
+	# See: website/content/docs/development.md
+	@if [ $$(git rev-parse --abbrev-ref HEAD) != 'master' ]; then \
+		echo 'This command should only be run from master'; \
+		exit 1; \
+	fi
+	for f in $$(ls -1 build/bin); do \
+		mkdir -p build/release/$$f-$(VERSION); \
+		cp build/bin/$$f build/release/$$f-$(VERSION)/mortar; \
+		tar -C build/release/$$f-$(VERSION) -czf build/release/$$f-$(VERSION).tar.gz .; \
+	done
+	docker tag ohsucompbio/mortar ohsucompbio/mortar:$(VERSION)
