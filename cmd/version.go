@@ -8,11 +8,11 @@ import (
 )
 
 func init() {
-  vCmd := cobra.Command{
-    Use: "version",
-    Run: func(cmd *cobra.Command, args []string) {
-      fmt.Println(version.String())
-    },
-  }
-  cmd.AddCommand(&vCmd)
+	vCmd := cobra.Command{
+		Use: "version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(version.String())
+		},
+	}
+	cmd.AddCommand(&vCmd)
 }

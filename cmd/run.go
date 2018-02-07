@@ -81,6 +81,10 @@ func run(conf Config) error {
 			}
 
 			for _, input := range task.Inputs {
+				// Some inputs have an empty URL, e.g. if they define the "content" field
+				if input.Url == "" {
+					continue
+				}
 				iv := &graph.FileVertex{input.Url, input.Type}
 				err := cli.AddVertex(iv)
 				if err != nil {
