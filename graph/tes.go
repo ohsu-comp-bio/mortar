@@ -73,7 +73,7 @@ func (f *FileVertex) MarshalAQLVertex() (*aql.Vertex, error) {
 	}
 	return &aql.Vertex{
 		Gid:   f.URL,
-		Label: "Mortar.File.URL",
+		Label: "Mortar.File",
 		Data: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"url": {
