@@ -122,7 +122,7 @@ func run(conf Config) error {
 		case events.Type_TASK_OUTPUTS:
 			outputs := ev.GetOutputs().Value
 			for _, output := range outputs {
-				ov := &graph.FileVertex{Url: output.Url}
+				ov := &graph.FileVertex{URL: output.Url}
 				err := cli.AddVertex(ov)
 				if err != nil {
 					log.Error("error adding vertex", err)
