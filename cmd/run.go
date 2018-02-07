@@ -50,12 +50,10 @@ func run(conf Config) error {
 
 		v, err := cli.GetVertex(ev.Id)
 		if err == nil && v != nil && v.Data != nil {
-			log.Info("unmarshal data", v.Data)
 			graph.Unmarshal(v.Data, task)
 		}
 
 		events.WriteEvent(task, ev)
-		log.Info("task", task)
 
 		taskV := &graph.TaskVertex{Task: task}
 		err = cli.AddVertex(taskV)
