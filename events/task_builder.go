@@ -11,12 +11,12 @@ func WriteEvent(t *tes.Task, ev *Event) {
 	index := int(ev.Index)
 
 	switch ev.Type {
-  case Type_TASK_CREATED:
-    // TODO this isn't 100% correct. if the events come out of order,
-    //      this should deep merge with the existing data.
-    et := ev.GetTask()
-    // TODO this is weird. Find a better way. Maybe return a task.
-    *t = *et
+	case Type_TASK_CREATED:
+		// TODO this isn't 100% correct. if the events come out of order,
+		//      this should deep merge with the existing data.
+		et := ev.GetTask()
+		// TODO this is weird. Find a better way. Maybe return a task.
+		*t = *et
 
 	case Type_TASK_STATE:
 		to := ev.GetState()
@@ -49,6 +49,6 @@ func WriteEvent(t *tes.Task, ev *Event) {
 	case Type_EXECUTOR_STDERR:
 		t.GetExecLog(attempt, index).Stderr += ev.GetStderr()
 
-  // TODO include system logs?
+		// TODO include system logs?
 	}
 }
