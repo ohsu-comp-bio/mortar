@@ -16,6 +16,7 @@ git:
   submodules: false
 
 install:
+  - make deps
   - make install
 
 jobs:
