@@ -6,6 +6,7 @@ import (
 	"github.com/bmeg/arachne/aql"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/ohsu-comp-bio/tes"
+	"github.com/rs/xid"
 )
 
 // TaskVertex is a vertex describing a task.
@@ -29,33 +30,34 @@ func (t *TaskVertex) MarshalAQLVertex() (*aql.Vertex, error) {
 	}, nil
 }
 
-// TagVertex is a vertex describing a Tag,
+// TagsVertex is a vertex describing a map of tags,
 // likely created by and linked to a TES task.
 type TagVertex struct {
-	Key, Value string
+	Tags map[string]string
 }
 
 // MarshalAQLVertex marshals the vertex into an arachne AQL vertex.
 func (t *TagVertex) MarshalAQLVertex() (*aql.Vertex, error) {
-	if t.Key == "" {
-		return nil, fmt.Errorf("can't marshal TagVertex: empty key")
+	if len(t.Tags) == 0 {
+		return nil, fmt.Errorf("can't marshal TagVertex: empty tags map")
 	}
+	fields := map[string]*structpb.Value{}
+	for k, v := range t.Tags {
+		if k == "" {
+			return nil, fmt.Errorf("can't marshal TagVertex: empty tag key")
+		}
+		fields[k] = &structpb.Value{
+			&structpb.Value_StringValue{
+				StringValue: v,
+			},
+		}
+	}
+
 	return &aql.Vertex{
-		Gid:   t.Key + ":" + t.Value,
+		Gid:   xid.New().String(),
 		Label: "TES.Task.Tag",
 		Data: &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"key": {
-					&structpb.Value_StringValue{
-						StringValue: t.Key,
-					},
-				},
-				"value": {
-					&structpb.Value_StringValue{
-						StringValue: t.Value,
-					},
-				},
-			},
+			Fields: fields,
 		},
 	}, nil
 }
