@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/bmeg/arachne/aql"
 	"github.com/ohsu-comp-bio/mortar/events"
 	"github.com/ohsu-comp-bio/mortar/graph"
@@ -32,12 +34,35 @@ func run(conf Config) error {
 		return err
 	}
 
+	log.Info("Connecting to arachne", "server", conf.Arachne.Server)
 	acli, err := aql.Connect(conf.Arachne.Server, true)
 	if err != nil {
 		return err
 	}
-	acli.AddGraph(conf.Arachne.Graph)
+
+	err = acli.AddGraph(conf.Arachne.Graph)
+	if err != nil {
+		return err
+	}
+
 	cli := graph.Client{Client: &acli, Graph: conf.Arachne.Graph}
+
+	countCh := make(chan struct{}, 100)
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		count := 0
+		for {
+			select {
+			case <-countCh:
+				count++
+			case <-ticker.C:
+				if count != 0 {
+					log.Info("imported events", "count", count)
+					count = 0
+				}
+			}
+		}
+	}()
 
 	for {
 		ev, err := r.Read()
@@ -46,7 +71,7 @@ func run(conf Config) error {
 			continue
 		}
 
-		task := &tes.Task{}
+		task := &tes.Task{Id: ev.Id}
 
 		v, err := cli.GetVertex(ev.Id)
 		if err == nil && v != nil && v.Data != nil {
@@ -65,8 +90,8 @@ func run(conf Config) error {
 		switch ev.Type {
 		case events.Type_TASK_CREATED:
 
-			for k, v := range task.Tags {
-				tv := &graph.TagVertex{k, v}
+			if len(task.Tags) > 0 {
+				tv := &graph.TagVertex{task.Tags}
 				err := cli.AddVertex(tv)
 				if err != nil {
 					log.Error("error adding vertex", err)
@@ -136,5 +161,6 @@ func run(conf Config) error {
 				}
 			}
 		}
+		countCh <- struct{}{}
 	}
 }
