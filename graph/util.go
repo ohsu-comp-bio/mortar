@@ -29,6 +29,34 @@ type Client struct {
 	Graph string
 }
 
+type Batch struct {
+  Edges []Edge
+  Verts []Vertex
+}
+func (b *Batch) AddVertex(v Vertex) {
+  b.Verts = append(b.Verts, v)
+}
+func (b *Batch) AddEdge(e Edge) {
+  b.Edges = append(b.Edges, e)
+}
+
+func (c *Client) AddBatch(b *Batch) error {
+  // TODO what we really want is transaction semantics with rollback
+  for _, v := range b.Verts {
+    err := c.AddVertex(v)
+    if err != nil {
+      return fmt.Errorf("while adding vertex from batch: %s", err)
+    }
+  }
+  for _, e := range b.Edges {
+    err := c.AddEdge(e)
+    if err != nil {
+      return fmt.Errorf("while adding edge from batch: %s", err)
+    }
+  }
+  return nil
+}
+
 // TODO finish wrapping client, and try to move this into arachne
 
 // AddVertex adds a vertex to the graph.

@@ -56,31 +56,23 @@ func run(conf Config) error {
 			continue
 		}
 
-		task := &tes.Task{Id: ev.Id}
+		task := &graph.Task{Task: &tes.Task{Id: ev.Id}}
 
 		v, err := cli.GetVertex(ev.Id)
 		if err == nil && v != nil && v.Data != nil {
-			graph.Unmarshal(v.Data, task)
+			graph.Unmarshal(v.Data, task.Task)
 		}
 
-		events.WriteEvent(task, ev)
-
-		taskV := &graph.Task{Task: task}
-		err = cli.AddVertex(taskV)
-		if err != nil {
-			log.Error("error adding vertex", err)
-			continue
-		}
+		events.WriteEvent(task.Task, ev)
+    b := &graph.Batch{}
+    b.AddVertex(task)
 
 		switch ev.Type {
 		case events.Type_TASK_CREATED:
 
 			if sID, ok := task.Tags["ktl.StepID"]; ok {
 				step := &graph.Step{ID: sID}
-				err = cli.AddEdge(graph.TaskForStep(taskV, step))
-				if err != nil {
-					log.Error("error adding edge", err)
-				}
+        b.AddEdge(graph.TaskForStep(task, step))
 			}
 
 			for _, input := range task.Inputs {
@@ -90,58 +82,37 @@ func run(conf Config) error {
 				}
 
 				iv := &graph.File{input.Url, input.Type}
-				err := cli.AddVertex(iv)
-				if err != nil {
-					log.Error("error adding vertex", err)
-				}
-
-				err = cli.AddEdge(graph.TaskRequestsInput(taskV, iv))
-				if err != nil {
-					log.Error("can't add edge", err)
-				}
+        b.AddVertex(iv)
+        b.AddEdge(graph.TaskRequestsInput(task, iv))
 			}
 
 			for _, output := range task.Outputs {
 				ov := &graph.File{output.Url, output.Type}
-				err := cli.AddVertex(ov)
-				if err != nil {
-					log.Error("error adding vertex", err)
-				}
-
-				err = cli.AddEdge(graph.TaskRequestsOutput(taskV, ov))
-				if err != nil {
-					log.Error("can't add edge", err)
-				}
+        b.AddVertex(ov)
+        b.AddEdge(graph.TaskRequestsOutput(task, ov))
 			}
 
 			for _, exec := range task.Executors {
 				iv := &graph.Image{exec.Image}
-				err := cli.AddVertex(iv)
-				if err != nil {
-					log.Error("error adding vertex", err)
-				}
-
-				err = cli.AddEdge(graph.TaskRequestsImage(taskV, iv))
-				if err != nil {
-					log.Error("can't add edge", err)
-				}
+        b.AddVertex(iv)
+        b.AddEdge(graph.TaskRequestsImage(task, iv))
 			}
 
 		case events.Type_TASK_OUTPUTS:
 			outputs := ev.GetOutputs().Value
 			for _, output := range outputs {
 				ov := &graph.File{URL: output.Url}
-				err := cli.AddVertex(ov)
-				if err != nil {
-					log.Error("error adding vertex", err)
-				}
-
-				err = cli.AddEdge(graph.TaskUploadedOutput(taskV, ov))
-				if err != nil {
-					log.Error("can't add edge", err)
-				}
+        b.AddVertex(ov)
+        b.AddEdge(graph.TaskUploadedOutput(task, ov))
 			}
 		}
+
+    err = cli.AddBatch(b)
+    if err != nil {
+      log.Error("add batch failed", err)
+      continue
+    }
+
 		counter.Inc()
 	}
 }
