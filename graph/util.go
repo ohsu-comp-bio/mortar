@@ -13,16 +13,16 @@ var mar = jsonpb.Marshaler{}
 
 // Vertex describes a type of arachne AQL vertex.
 type Vertex interface {
-	MarshalAQLVertex() (*aql.Vertex, error)
+	MarshalAQL() (*aql.Vertex, error)
 }
 
 // Edge describes a type of arachne AQL edge.
 type Edge interface {
-	MarshalAQLEdge() (*aql.Edge, error)
+	MarshalAQL() (*aql.Edge, error)
 }
 
 // Client wraps the arachne client with conveniences including:
-// marshaling Vertex/Edge types using the MarshalAQLVertex/MarshalAQLEdge method,
+// marshaling Vertex/Edge types using the MarshalAQL method,
 // and being tied to a single graph.
 type Client struct {
 	*aql.Client
@@ -33,7 +33,7 @@ type Client struct {
 
 // AddVertex adds a vertex to the graph.
 func (c *Client) AddVertex(v Vertex) error {
-	av, err := v.MarshalAQLVertex()
+	av, err := v.MarshalAQL()
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (c *Client) AddVertex(v Vertex) error {
 
 // AddEdge adds an edge to the graph.
 func (c *Client) AddEdge(e Edge) error {
-	ae, err := e.MarshalAQLEdge()
+	ae, err := e.MarshalAQL()
 	if err != nil {
 		return err
 	}
@@ -82,31 +82,40 @@ func Unmarshal(st *structpb.Struct, msg proto.Message) error {
 	return jsonpb.UnmarshalString(b, msg)
 }
 
-// NewEdge creates an arachne edge with the given `label`
-// between the given `from` and `to` vertices. The edge's GID is constructed
-// using the `from` and `to` vertices GIDs.
-func NewEdge(label string, from, to Vertex) (*aql.Edge, error) {
-	if label == "" {
+type edge struct {
+	label    string
+	from, to Vertex
+}
+
+func (e *edge) MarshalAQL() (*aql.Edge, error) {
+	if e.label == "" {
 		return nil, fmt.Errorf("can't create edge: empty label")
 	}
-	if from == nil {
+	if e.from == nil {
 		return nil, fmt.Errorf("can't create edge: empty From vertex")
 	}
-	if to == nil {
+	if e.to == nil {
 		return nil, fmt.Errorf("can't create edge: empty To vertex")
 	}
-	fv, err := from.MarshalAQLVertex()
+	fv, err := e.from.MarshalAQL()
 	if err != nil {
 		return nil, err
 	}
-	tv, err := to.MarshalAQLVertex()
+	tv, err := e.to.MarshalAQL()
 	if err != nil {
 		return nil, err
 	}
 	return &aql.Edge{
 		Gid:   fv.Gid + "->" + tv.Gid,
-		Label: label,
+		Label: e.label,
 		From:  fv.Gid,
 		To:    tv.Gid,
 	}, nil
+}
+
+// NewEdge creates an arachne edge with the given `label`
+// between the given `from` and `to` vertices. The edge's GID is constructed
+// using the `from` and `to` vertices GIDs.
+func NewEdge(label string, from, to Vertex) Edge {
+	return &edge{label, from, to}
 }

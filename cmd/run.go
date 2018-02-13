@@ -29,10 +29,6 @@ func init() {
 }
 
 func run(conf Config) error {
-	r, err := events.NewKafkaReader(conf.Kafka)
-	if err != nil {
-		return err
-	}
 
 	log.Info("Connecting to arachne", "server", conf.Arachne.Server)
 	acli, err := aql.Connect(conf.Arachne.Server, true)
@@ -46,23 +42,12 @@ func run(conf Config) error {
 	}
 
 	cli := graph.Client{Client: &acli, Graph: conf.Arachne.Graph}
+	counter := NewCounter("imported events", time.Second)
 
-	countCh := make(chan struct{}, 100)
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		count := 0
-		for {
-			select {
-			case <-countCh:
-				count++
-			case <-ticker.C:
-				if count != 0 {
-					log.Info("imported events", "count", count)
-					count = 0
-				}
-			}
-		}
-	}()
+	r, err := events.NewKafkaReader(conf.Kafka)
+	if err != nil {
+		return err
+	}
 
 	for {
 		ev, err := r.Read()
@@ -80,7 +65,7 @@ func run(conf Config) error {
 
 		events.WriteEvent(task, ev)
 
-		taskV := &graph.TaskVertex{Task: task}
+		taskV := &graph.Task{Task: task}
 		err = cli.AddVertex(taskV)
 		if err != nil {
 			log.Error("error adding vertex", err)
@@ -90,16 +75,11 @@ func run(conf Config) error {
 		switch ev.Type {
 		case events.Type_TASK_CREATED:
 
-			if len(task.Tags) > 0 {
-				tv := &graph.TagVertex{task.Tags}
-				err := cli.AddVertex(tv)
+			if sID, ok := task.Tags["ktl.StepID"]; ok {
+				step := &graph.Step{ID: sID}
+				err = cli.AddEdge(graph.TaskForStep(taskV, step))
 				if err != nil {
-					log.Error("error adding vertex", err)
-				}
-
-				err = cli.AddEdge(&graph.HasTagEdge{taskV, tv})
-				if err != nil {
-					log.Error("error adding task->tag edge", err)
+					log.Error("error adding edge", err)
 				}
 			}
 
@@ -108,39 +88,40 @@ func run(conf Config) error {
 				if input.Url == "" {
 					continue
 				}
-				iv := &graph.FileVertex{input.Url, input.Type}
+
+				iv := &graph.File{input.Url, input.Type}
 				err := cli.AddVertex(iv)
 				if err != nil {
 					log.Error("error adding vertex", err)
 				}
 
-				err = cli.AddEdge(&graph.RequestsInputEdge{taskV, iv})
+				err = cli.AddEdge(graph.TaskRequestsInput(taskV, iv))
 				if err != nil {
 					log.Error("can't add edge", err)
 				}
 			}
 
 			for _, output := range task.Outputs {
-				ov := &graph.FileVertex{output.Url, output.Type}
+				ov := &graph.File{output.Url, output.Type}
 				err := cli.AddVertex(ov)
 				if err != nil {
 					log.Error("error adding vertex", err)
 				}
 
-				err = cli.AddEdge(&graph.RequestsOutputEdge{taskV, ov})
+				err = cli.AddEdge(graph.TaskRequestsOutput(taskV, ov))
 				if err != nil {
 					log.Error("can't add edge", err)
 				}
 			}
 
 			for _, exec := range task.Executors {
-				iv := &graph.ImageVertex{exec.Image}
+				iv := &graph.Image{exec.Image}
 				err := cli.AddVertex(iv)
 				if err != nil {
 					log.Error("error adding vertex", err)
 				}
 
-				err = cli.AddEdge(&graph.RequestsImageEdge{taskV, iv})
+				err = cli.AddEdge(graph.TaskRequestsImage(taskV, iv))
 				if err != nil {
 					log.Error("can't add edge", err)
 				}
@@ -149,18 +130,18 @@ func run(conf Config) error {
 		case events.Type_TASK_OUTPUTS:
 			outputs := ev.GetOutputs().Value
 			for _, output := range outputs {
-				ov := &graph.FileVertex{URL: output.Url}
+				ov := &graph.File{URL: output.Url}
 				err := cli.AddVertex(ov)
 				if err != nil {
 					log.Error("error adding vertex", err)
 				}
 
-				err = cli.AddEdge(&graph.UploadedOutputEdge{taskV, ov})
+				err = cli.AddEdge(graph.TaskUploadedOutput(taskV, ov))
 				if err != nil {
 					log.Error("can't add edge", err)
 				}
 			}
 		}
-		countCh <- struct{}{}
+		counter.Inc()
 	}
 }
