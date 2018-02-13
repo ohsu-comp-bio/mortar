@@ -6,107 +6,43 @@ import (
 	"github.com/bmeg/arachne/aql"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/ohsu-comp-bio/tes"
-	"github.com/rs/xid"
 )
 
-// TaskVertex is a vertex describing a task.
-type TaskVertex struct {
+// Task is a vertex describing a task.
+type Task struct {
 	*tes.Task
 }
 
-// MarshalAQLVertex marshals the vertex into an arachne AQL vertex.
-func (t *TaskVertex) MarshalAQLVertex() (*aql.Vertex, error) {
-	if t.Task.Id == "" {
-		return nil, fmt.Errorf("can't marshal TaskVertex: empty ID")
+// MarshalAQL marshals the vertex into an arachne AQL vertex.
+func (t *Task) MarshalAQL() (*aql.Vertex, error) {
+	if t.Id == "" {
+		return nil, fmt.Errorf("can't marshal tes.Task: empty ID")
 	}
 	d, err := Marshal(t.Task)
 	if err != nil {
-		return nil, fmt.Errorf("can't marshal TaskVertex: %s", err)
+		return nil, fmt.Errorf("can't marshal tes.Task: %s", err)
 	}
 	return &aql.Vertex{
-		Gid:   t.Task.Id,
-		Label: "TES.Task",
+		Gid:   t.Id,
+		Label: "tes.Task",
 		Data:  d,
 	}, nil
 }
 
-// TagsVertex is a vertex describing a map of tags,
-// likely created by and linked to a TES task.
-type TagVertex struct {
-	Tags map[string]string
-}
-
-// MarshalAQLVertex marshals the vertex into an arachne AQL vertex.
-func (t *TagVertex) MarshalAQLVertex() (*aql.Vertex, error) {
-	if len(t.Tags) == 0 {
-		return nil, fmt.Errorf("can't marshal TagVertex: empty tags map")
-	}
-	fields := map[string]*structpb.Value{}
-	for k, v := range t.Tags {
-		if k == "" {
-			return nil, fmt.Errorf("can't marshal TagVertex: empty tag key")
-		}
-		fields[k] = &structpb.Value{
-			&structpb.Value_StringValue{
-				StringValue: v,
-			},
-		}
-	}
-
-	return &aql.Vertex{
-		Gid:   xid.New().String(),
-		Label: "TES.Task.Tag",
-		Data: &structpb.Struct{
-			Fields: fields,
-		},
-	}, nil
-}
-
-// FileVertex describes a file. Files maybe be of type "file" or "directory".
-type FileVertex struct {
-	URL  string
-	Type tes.FileType
-}
-
-// MarshalAQLVertex marshals the vertex into an arachne AQL vertex.
-func (f *FileVertex) MarshalAQLVertex() (*aql.Vertex, error) {
-	if f.URL == "" {
-		return nil, fmt.Errorf("can't marshal FileVertex: empty url")
-	}
-	return &aql.Vertex{
-		Gid:   f.URL,
-		Label: "Mortar.File",
-		Data: &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"url": {
-					Kind: &structpb.Value_StringValue{
-						StringValue: f.URL,
-					},
-				},
-				"type": {
-					Kind: &structpb.Value_StringValue{
-						StringValue: f.Type.String(),
-					},
-				},
-			},
-		},
-	}, nil
-}
-
-// ImageVertex describes a container image (e.g. docker),
-// such as the image described by a TES Task.
-type ImageVertex struct {
+// Image describes a container image (e.g. docker),
+// such as the image described by a tes Task.
+type Image struct {
 	Name string
 }
 
-// MarshalAQLVertex marshals the vertex into an arachne AQL vertex.
-func (i *ImageVertex) MarshalAQLVertex() (*aql.Vertex, error) {
+// MarshalAQL marshals the vertex into an arachne AQL vertex.
+func (i *Image) MarshalAQL() (*aql.Vertex, error) {
 	if i.Name == "" {
-		return nil, fmt.Errorf("can't marshal ImageVertex: empty name")
+		return nil, fmt.Errorf("can't marshal Image: empty name")
 	}
 	return &aql.Vertex{
 		Gid:   i.Name,
-		Label: "TES.Task.Image",
+		Label: "tes.Task.Image",
 		Data: &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"name": {
@@ -119,57 +55,18 @@ func (i *ImageVertex) MarshalAQLVertex() (*aql.Vertex, error) {
 	}, nil
 }
 
-// HasTagEdge links a tag to a task.
-type HasTagEdge struct {
-	From *TaskVertex
-	To   *TagVertex
+func TaskRequestsImage(t *Task, i *Image) Edge {
+	return NewEdge("tes.Task.RequestsImage", t, i)
 }
 
-// MarshalAQLEdge marshals the edge into an arachne AQL Edge.
-func (e *HasTagEdge) MarshalAQLEdge() (*aql.Edge, error) {
-	return NewEdge("TES.Task.HasTag", e.From, e.To)
+func TaskRequestsInput(t *Task, f *File) Edge {
+	return NewEdge("tes.Task.RequestsInput", t, f)
 }
 
-// RequestsImageEdge links an image to a task.
-type RequestsImageEdge struct {
-	From *TaskVertex
-	To   *ImageVertex
+func TaskRequestsOutput(t *Task, f *File) Edge {
+	return NewEdge("tes.Task.RequestsOutput", t, f)
 }
 
-// MarshalAQLEdge marshals the edge into an arachne AQL Edge.
-func (e *RequestsImageEdge) MarshalAQLEdge() (*aql.Edge, error) {
-	return NewEdge("TES.Task.RequestsImage", e.From, e.To)
-}
-
-// RequestsInputEdge links a file to a task input description.
-type RequestsInputEdge struct {
-	From *TaskVertex
-	To   *FileVertex
-}
-
-// MarshalAQLEdge marshals the edge into an arachne AQL Edge.
-func (e *RequestsInputEdge) MarshalAQLEdge() (*aql.Edge, error) {
-	return NewEdge("TES.Task.RequestsInput", e.From, e.To)
-}
-
-// RequestsOutputEdge links a file to a task output description.
-type RequestsOutputEdge struct {
-	From *TaskVertex
-	To   *FileVertex
-}
-
-// MarshalAQLEdge marshals the edge into an arachne AQL Edge.
-func (e *RequestsOutputEdge) MarshalAQLEdge() (*aql.Edge, error) {
-	return NewEdge("TES.Task.RequestsOutput", e.From, e.To)
-}
-
-// UploadedOutputEdge links a task to an output file.
-type UploadedOutputEdge struct {
-	From *TaskVertex
-	To   *FileVertex
-}
-
-// MarshalAQLEdge marshals the edge into an arachne AQL Edge.
-func (e *UploadedOutputEdge) MarshalAQLEdge() (*aql.Edge, error) {
-	return NewEdge("TES.Task.UploadedOutput", e.From, e.To)
+func TaskUploadedOutput(t *Task, f *File) Edge {
+	return NewEdge("tes.Task.UploadedOutput", t, f)
 }
