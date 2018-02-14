@@ -134,7 +134,7 @@ func (e *edge) MarshalAQL() (*aql.Edge, error) {
 		return nil, err
 	}
 	return &aql.Edge{
-		Gid:   fv.Gid + "->" + tv.Gid,
+		Gid:   fv.Gid + " to " + tv.Gid,
 		Label: e.label,
 		From:  fv.Gid,
 		To:    tv.Gid,
