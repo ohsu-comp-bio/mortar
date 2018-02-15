@@ -3,6 +3,7 @@ package main
 import (
   "encoding/json"
   "fmt"
+  "sort"
   "net/http"
 	"github.com/bmeg/arachne/aql"
 	"github.com/ohsu-comp-bio/funnel/logger"
@@ -20,11 +21,18 @@ type runStat struct {
 
 type wfStat struct {
   Name string
-  Runs []*runStat
+  // TODO there will be more here later.
 }
 
 type respData struct {
-  Workflows []*wfStat
+  // Why separate IDs from data you ask?
+  // Because this data is rendered into a sparse table.
+  // The workflow and run data maps, might not contain entries for all table cells.
+  WorkflowIDs []string
+  RunIDs []string
+
+  Workflows map[string]*wfStat
+  Runs map[string]*runStat
 }
 
 func main() {
@@ -52,20 +60,7 @@ func main() {
   http.Handle("/", http.FileServer(http.Dir("web")))
   http.HandleFunc("/data.json", func(resp http.ResponseWriter, req *http.Request) {
 
-    d := &respData{}
-    res, err := cli.Query(graphID).
-      V().
-      HasLabel("ktl.Run").As("run").
-      Execute()
-
-    if err != nil {
-      log.Error("ERR", err)
-    }
-    for row := range res {
-      v := row.Value.GetVertex()
-      rd := getRun(cli, graphID, v.Gid)
-      d.Runs = append(d.Runs, rd)
-    }
+    d := getData(cli, graphID)
 
     enc := json.NewEncoder(resp)
     enc.Encode(d)
@@ -74,11 +69,22 @@ func main() {
   http.ListenAndServe(":9653", nil)
 }
 
-func getRun(cli graph.Client, graphID, runID string) *runStat {
-  d := &runStat{}
+func getData(cli graph.Client, graphID string) *respData {
+  // TODO it is quite annoying to figure out how to best construct this data
+  //      in the absence of DB sorting and grouping
+
+  d := &respData{
+    Workflows: map[string]*wfStat{},
+    Runs: map[string]*runStat{},
+  }
+
+  // TODO did I mention how complicated this is? I want grouping
+  wfIDs := map[string]bool{}
+  runIDs := map[string]bool{}
 
   res, err := cli.Query(graphID).
-    V(runID).As("run").
+    V().
+    HasLabel("ktl.Run").As("run").
     Out("ktl.RunForWorkflow").As("workflow").
     Select("run", "workflow").
     Execute()
@@ -86,14 +92,35 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
   if err != nil {
     log.Error("ERR", err)
   }
-  row := <-res
-  runV := row.Row[0].GetVertex()
-  wfV := row.Row[1].GetVertex()
-  d.Name = runV.Gid
-  d.Workflow = wfV.Gid
+
+  for row := range res {
+    runv := row.Row[0].GetVertex()
+    wfv := row.Row[1].GetVertex()
+    d.Workflows[wfv.Gid] = &wfStat{wfv.Gid}
+    wfIDs[wfv.Gid] = true
+    runIDs[runv.Gid] = true
+  }
+
+  for wfid, _ := range wfIDs {
+    d.WorkflowIDs = append(d.WorkflowIDs, wfid)
+  }
+
+  for rid, _ := range runIDs {
+    d.RunIDs = append(d.RunIDs, rid)
+    d.Runs[rid] = getRun(cli, graphID, rid)
+  }
+
+  sort.Strings(d.WorkflowIDs)
+  sort.Strings(d.RunIDs)
+
+  return d
+}
+
+func getRun(cli graph.Client, graphID, runID string) *runStat {
+  d := &runStat{}
 
   steps := map[string]*aql.Vertex{}
-  res, err = cli.Query(graphID).
+  res, err := cli.Query(graphID).
     V(runID).
     Out("ktl.RunForWorkflow").
     In("ktl.StepInWorkflow").
@@ -110,20 +137,22 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
   stepTasks := map[string][]*aql.Vertex{}
   res, err = cli.Query(graphID).
     V(runID).
-    Out("ktl.RunForWorkflow").
+    Out("ktl.RunForWorkflow").As("run").
     In("ktl.StepInWorkflow").As("step").
     In("ktl.TaskForStep").As("task").
     Out("ktl.TaskForRun").
     HasId(runID).
-    Select("step", "task").
+    Select("run", "step", "task").
     Execute()
 
   if err != nil {
     log.Error("ERR", err)
   }
   for row := range res {
-    step := row.Row[0].GetVertex()
-    task := row.Row[1].GetVertex()
+    run := row.Row[0].GetVertex()
+    step := row.Row[1].GetVertex()
+    task := row.Row[2].GetVertex()
+    d.Name = run.Gid
     stepTasks[step.Gid] = append(stepTasks[step.Gid], task)
   }
 
@@ -289,216 +318,4 @@ func makeData() *graph.Batch {
   b.AddEdge(graph.TaskForRun(r2t3, r2))
 
   return b
-}
-
-func examples(cli graph.Client, graphID string) {
-  // Begin queries
-
-  // Start simple, just retrieve a run.
-  res, err := cli.Query(graphID).V("Run 1").Execute()
-  if err != nil {
-    fmt.Println("ERR", err)
-  }
-  for row := range res {
-    fmt.Println("ROW", row)
-    fmt.Println("VALUE", row.Value)
-    r1 := row.Value.GetVertex()
-    fmt.Println("RUN", r1)
-  }
-
-  // Get all the tasks connected to a run.
-  // Note that Select() changes the return type to use the res.Row field.
-  res, err = cli.Query(graphID).
-    V("Run 1").As("run").
-    In("ktl.TaskForRun").As("task").
-    Select("run", "task").Execute()
-
-  if err != nil {
-    fmt.Println("ERR", err)
-  }
-  for row := range res {
-    log.Info("q2", fmtRow(row.Row))
-  }
-
-  // For a given run, get all the tasks, then all the steps those tasks
-  // are for.
-  res, err = cli.Query(graphID).
-    V("Run 1").As("run").
-    In("ktl.TaskForRun").As("task").
-    Out("ktl.TaskForStep").As("step").
-    Select("run", "task", "step").Execute()
-
-  if err != nil {
-    fmt.Println("ERR", err)
-  }
-  for row := range res {
-    log.Info("q3", fmtRow(row.Row))
-  }
-
-  // Get the workflow that a run is running.
-  res, err = cli.Query(graphID).
-    V("Run 1").
-    Out("ktl.RunForWorkflow").
-    Execute()
-
-  if err != nil {
-    fmt.Println("ERR", err)
-  }
-
-  for row := range res {
-    log.Info("q4", row.Value)
-  }
-
-
-  // DEBUG get all ktl.StepInWorkfow edges
-  res, err = cli.Query(graphID).
-    E().
-    HasLabel("ktl.StepInWorkflow").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-
-  for row := range res {
-    log.Info("q5", row)
-  }
-
-  // Get all the steps in the workflow that is running.
-  res, err = cli.Query(graphID).
-    V("Run 1").
-    Out("ktl.RunForWorkflow").
-    In("ktl.StepInWorkflow").
-    // TODO spend 10-20 minutes debugging this line, which has a typo "Workfow"
-    //      very subtle. want help from the client code and/or server schema.
-    //In("ktl.StepInWorkfow").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-  for row := range res {
-    v := row.Value.GetVertex()
-    log.Info("all steps in a running workflow", v.Label, v.Gid)
-  }
-
-  // Get all the steps in the workflow that is running, and get the
-  // tasks for each step in the run.
-  // Get all the steps in the workflow that is running.
-  res, err = cli.Query(graphID).
-    V("Run 1").
-    Out("ktl.RunForWorkflow").
-    In("ktl.StepInWorkflow").As("step").
-    In("ktl.TaskForStep").As("task").
-    // TODO how is this even working right?
-    //      the select is in the wrong place.
-    Select("step", "task").
-    Out("ktl.TaskForRun").
-    HasId("Run 1").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-  for row := range res {
-    log.Info("q7", fmtRow(row.Row))
-  }
-
-
-  // Now the same for run 2
-  res, err = cli.Query(graphID).
-    V("Run 2").
-    Out("ktl.RunForWorkflow").
-    In("ktl.StepInWorkflow").As("step").
-    In("ktl.TaskForStep").As("task").
-    Out("ktl.TaskForRun").
-    HasId("Run 2").
-    Select("step", "task").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-  for row := range res {
-    log.Info("steps with tasks for a run", fmtRow(row.Row))
-  }
-
-  // TODO the query above returns only the running steps.
-  //      would be nice to include the tasks only if the exist, null otherwise
-
-
-
-  // Now combine all steps + steps with tasks
-  //
-  // For a given run, how complete is the run?
-  // Get all the steps in the running workflow, and determine whether they
-  // are all complete.
-  steps := map[string]*aql.Vertex{}
-  res, err = cli.Query(graphID).
-    V("Run 2").
-    Out("ktl.RunForWorkflow").
-    In("ktl.StepInWorkflow").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-  for row := range res {
-    v := row.Value.GetVertex()
-    steps[v.Gid] = v
-    log.Info("steps in workflow", v)
-  }
-
-  stepTasks := map[string][]*aql.Vertex{}
-  res, err = cli.Query(graphID).
-    V("Run 2").
-    Out("ktl.RunForWorkflow").
-    In("ktl.StepInWorkflow").As("step").
-    In("ktl.TaskForStep").As("task").
-    Out("ktl.TaskForRun").
-    HasId("Run 2").
-    Select("step", "task").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-  for row := range res {
-    step := row.Row[0].GetVertex()
-    task := row.Row[1].GetVertex()
-    stepTasks[step.Gid] = append(stepTasks[step.Gid], task)
-  }
-
-  running := 0
-  for sid, _ := range steps {
-    tasks := stepTasks[sid]
-    if len(tasks) > 1 {
-      panic("unhandled case, multiple tasks for a running step")
-    }
-    if len(tasks) == 1 {
-      running++
-    }
-  }
-
-  log.Info("status", "steps", len(steps), "running", running)
-
-
-  // Try doing the above analysis for all runs at once
-  res, err = cli.Query(graphID).
-    V().
-    HasLabel("ktl.Run").As("run").
-    Out("ktl.RunForWorkflow").As("workflow").
-    In("ktl.StepInWorkflow").As("step").
-    Select("run", "workflow", "step").
-    Execute()
-
-  if err != nil {
-    log.Error("ERR", err)
-  }
-  for row := range res {
-    log.Info("q9", fmtRow(row.Row))
-  }
-
-  // TODO where() or filterValues() is  needed for part 2, because the
-  //      tasks need to be filtered on the current run.
 }

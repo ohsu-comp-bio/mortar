@@ -18,13 +18,28 @@
         resp.json().then(function(data) {
           console.log(data)
           var dat = JSON.stringify(data);
+
+          var rows = [];
+          for (var i = 0; i < data["WorkflowIDs"].length; i++) {
+            var wfid = data["WorkflowIDs"][i];
+            var wf = data["Workflows"][wfid];
+            var cells = [];
+            for (var j = 0; j < data["RunIDs"].length; j++) {
+              var rid = data["RunIDs"][j];
+              var run = data["Runs"][rid];
+              cells.push(<td key={"run-" + rid}>{run.Name} {run.Running} / {run.Total}</td>);
+            }
+            rows.push(<tr key={"wf-" + wfid}>{cells}</tr>);
+          }
+
           ReactDOM.render(
             (<div>
               <h3>Mortar</h3>
-              <div>{dat}</div>
+              <table><tbody>{rows}</tbody></table>
             </div>),
             document.getElementById('root')
           );
+
         })
       })
 
