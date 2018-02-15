@@ -117,7 +117,7 @@ func getData(cli graph.Client, graphID string) *respData {
 }
 
 func getRun(cli graph.Client, graphID, runID string) *runStat {
-  d := &runStat{}
+  d := &runStat{Name: runID}
 
   steps := map[string]*aql.Vertex{}
   res, err := cli.Query(graphID).
@@ -137,22 +137,20 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
   stepTasks := map[string][]*aql.Vertex{}
   res, err = cli.Query(graphID).
     V(runID).
-    Out("ktl.RunForWorkflow").As("run").
+    Out("ktl.RunForWorkflow").
     In("ktl.StepInWorkflow").As("step").
     In("ktl.TaskForStep").As("task").
     Out("ktl.TaskForRun").
     HasId(runID).
-    Select("run", "step", "task").
+    Select("step", "task").
     Execute()
 
   if err != nil {
     log.Error("ERR", err)
   }
   for row := range res {
-    run := row.Row[0].GetVertex()
-    step := row.Row[1].GetVertex()
-    task := row.Row[2].GetVertex()
-    d.Name = run.Gid
+    step := row.Row[0].GetVertex()
+    task := row.Row[1].GetVertex()
     stepTasks[step.Gid] = append(stepTasks[step.Gid], task)
   }
 

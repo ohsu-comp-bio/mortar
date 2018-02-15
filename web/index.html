@@ -20,14 +20,22 @@
           var dat = JSON.stringify(data);
 
           var rows = [];
+          var header = [<th key="empty"></th>]
+          for (var j = 0; j < data["RunIDs"].length; j++) {
+            var rid = data["RunIDs"][j];
+            var run = data["Runs"][rid];
+            header.push(<th key={"run-th-" + rid}>{run.Name}</th>);
+          }
+
           for (var i = 0; i < data["WorkflowIDs"].length; i++) {
             var wfid = data["WorkflowIDs"][i];
             var wf = data["Workflows"][wfid];
             var cells = [];
+            cells.push(<td key={"wf-name-" + wfid}>{wf.Name}</td>);
             for (var j = 0; j < data["RunIDs"].length; j++) {
               var rid = data["RunIDs"][j];
               var run = data["Runs"][rid];
-              cells.push(<td key={"run-" + rid}>{run.Name} {run.Running} / {run.Total}</td>);
+              cells.push(<td key={"run-" + rid}>{run.Running} / {run.Total}</td>);
             }
             rows.push(<tr key={"wf-" + wfid}>{cells}</tr>);
           }
@@ -35,7 +43,10 @@
           ReactDOM.render(
             (<div>
               <h3>Mortar</h3>
-              <table><tbody>{rows}</tbody></table>
+              <table>
+                <thead><tr>{header}</tr></thead>
+                <tbody>{rows}</tbody>
+              </table>
             </div>),
             document.getElementById('root')
           );
