@@ -9,6 +9,8 @@ import (
 	"github.com/ohsu-comp-bio/funnel/logger"
 	"github.com/ohsu-comp-bio/mortar/graph"
 	"github.com/ohsu-comp-bio/tes"
+  "github.com/prometheus/client_golang/prometheus"
+  "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var log = logger.NewLogger("quick", logger.DefaultConfig())
@@ -16,7 +18,7 @@ var log = logger.NewLogger("quick", logger.DefaultConfig())
 type runStat struct {
   Name string
   Total int
-  Running int
+  Complete int
 }
 
 type wfStat struct {
@@ -33,6 +35,29 @@ type respData struct {
 
   Workflows map[string]*wfStat
   Runs map[string]*runStat
+}
+
+var completeGauge = prometheus.NewGaugeVec(
+  prometheus.GaugeOpts{
+    Namespace: "ohsu",
+    Subsystem: "mortar",
+    Name: "steps_complete",
+    Help: "Number of steps complete per workflow run.",
+  },
+  []string{"run"},
+)
+var totalGauge = prometheus.NewGaugeVec(
+  prometheus.GaugeOpts{
+    Namespace: "ohsu",
+    Subsystem: "mortar",
+    Name: "total_steps",
+    Help: "Total number of steps in a run.",
+  },
+  []string{"run"},
+)
+func init() {
+  prometheus.MustRegister(completeGauge)
+  prometheus.MustRegister(totalGauge)
 }
 
 func main() {
@@ -58,6 +83,12 @@ func main() {
   }
 
   http.Handle("/", http.FileServer(http.Dir("web")))
+
+
+  http.HandleFunc("/metrics", func(resp http.ResponseWriter, req *http.Request) {
+    updateMetrics(cli, graphID)
+    promhttp.Handler().ServeHTTP(resp, req)
+  })
   http.HandleFunc("/data.json", func(resp http.ResponseWriter, req *http.Request) {
 
     d := getData(cli, graphID)
@@ -67,6 +98,14 @@ func main() {
   })
   log.Info("listening", "http://localhost:9653")
   http.ListenAndServe(":9653", nil)
+}
+
+func updateMetrics(cli graph.Client, graphID string) {
+  d := getData(cli, graphID)
+  for rid, run := range d.Runs {
+    completeGauge.WithLabelValues(rid).Set(float64(run.Complete))
+    totalGauge.WithLabelValues(rid).Set(float64(run.Total))
+  }
 }
 
 func getData(cli graph.Client, graphID string) *respData {
@@ -154,20 +193,20 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
     stepTasks[step.Gid] = append(stepTasks[step.Gid], task)
   }
 
-  running := 0
+  complete := 0
   for sid, _ := range steps {
     tasks := stepTasks[sid]
     if len(tasks) > 1 {
-      panic("unhandled case, multiple tasks for a running step")
+      panic("unhandled case, multiple tasks for a step")
     }
     if len(tasks) == 1 {
-      running++
+      complete++
     }
   }
 
-  log.Info("status", "run", runID, "steps", len(steps), "running", running)
+  log.Info("status", "run", runID, "steps", len(steps), "complete", complete)
   d.Total = len(steps)
-  d.Running = running
+  d.Complete = complete
   return d
 }
 

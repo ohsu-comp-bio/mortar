@@ -7,6 +7,15 @@
     <script src="react.development.js"></script>
     <script src="react-dom.development.js"></script>
     <script src="babel.min.js"></script>
+    <style>
+      .complete {
+        background-color: #96ff62;
+      }
+      td {
+        text-align: center;
+        padding: 5px 10px;
+      }
+    </style>
   </head>
 
   <body>
@@ -35,7 +44,11 @@
             for (var j = 0; j < data["RunIDs"].length; j++) {
               var rid = data["RunIDs"][j];
               var run = data["Runs"][rid];
-              cells.push(<td key={"run-" + rid}>{run.Running} / {run.Total}</td>);
+              var classname = "";
+              if (run.Total == run.Complete) {
+                classname = "complete";
+              }
+              cells.push(<td key={"run-" + rid} className={classname}>{run.Complete} / {run.Total}</td>);
             }
             rows.push(<tr key={"wf-" + wfid}>{cells}</tr>);
           }
