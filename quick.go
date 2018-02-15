@@ -19,6 +19,9 @@ type runStat struct {
   Name string
   Total int
   Complete int
+  Steps map[string]*aql.Vertex
+  Tasks map[string]*tes.Task
+  StepTasks map[string][]string
 }
 
 type wfStat struct {
@@ -83,7 +86,6 @@ func main() {
   }
 
   http.Handle("/", http.FileServer(http.Dir("web")))
-
 
   http.HandleFunc("/metrics", func(resp http.ResponseWriter, req *http.Request) {
     updateMetrics(cli, graphID)
@@ -156,9 +158,15 @@ func getData(cli graph.Client, graphID string) *respData {
 }
 
 func getRun(cli graph.Client, graphID, runID string) *runStat {
-  d := &runStat{Name: runID}
+  d := &runStat{
+    Name: runID,
+    // TODO don't like having everything be essentially a generic vertex
+    Steps: map[string]*aql.Vertex{},
+    Tasks: map[string]*tes.Task{},
+    StepTasks: map[string][]string{},
+  }
 
-  steps := map[string]*aql.Vertex{}
+  // Get all steps
   res, err := cli.Query(graphID).
     V(runID).
     Out("ktl.RunForWorkflow").
@@ -170,10 +178,10 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
   }
   for row := range res {
     v := row.Value.GetVertex()
-    steps[v.Gid] = v
+    d.Steps[v.Gid] = v
   }
 
-  stepTasks := map[string][]*aql.Vertex{}
+  // Get steps with a task
   res, err = cli.Query(graphID).
     V(runID).
     Out("ktl.RunForWorkflow").
@@ -189,25 +197,48 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
   }
   for row := range res {
     step := row.Row[0].GetVertex()
-    task := row.Row[1].GetVertex()
-    stepTasks[step.Gid] = append(stepTasks[step.Gid], task)
+    task := &tes.Task{}
+    err := graph.Unmarshal(row.Row[1].GetVertex().Data, task)
+    if err != nil {
+      panic(err)
+    }
+    d.StepTasks[step.Gid] = append(d.StepTasks[step.Gid], task.Id)
+    d.Tasks[task.Id] = task
   }
 
-  complete := 0
-  for sid, _ := range steps {
-    tasks := stepTasks[sid]
-    if len(tasks) > 1 {
-      panic("unhandled case, multiple tasks for a step")
+  for sid, _ := range d.Steps {
+    tids := d.StepTasks[sid]
+
+    if len(tids) == 0 {
+      continue
     }
-    if len(tasks) == 1 {
-      complete++
+
+    tasks := []*tes.Task{}
+    for _, tid := range tids {
+      tasks = append(tasks, d.Tasks[tid])
+    }
+    sort.Sort(ByCreationTime(tasks))
+    latest := tasks[len(tasks) - 1]
+
+    if latest.State == tes.Complete {
+      d.Complete++
     }
   }
 
-  log.Info("status", "run", runID, "steps", len(steps), "complete", complete)
-  d.Total = len(steps)
-  d.Complete = complete
+  d.Total = len(d.Steps)
+  log.Info("status", "run", runID, "total", d.Total, "complete", d.Complete)
   return d
+}
+
+type ByCreationTime []*tes.Task
+func (b ByCreationTime) Len() int {
+  return len(b)
+}
+func (b ByCreationTime) Less(i, j int) bool {
+  return b[i].CreationTime < b[j].CreationTime
+}
+func (b ByCreationTime) Swap(i, j int) {
+  b[i], b[j] = b[j], b[i]
 }
 
 func fmtRow(row []*aql.QueryResult) []string {
@@ -303,6 +334,7 @@ func makeData() *graph.Batch {
   r2t2 := &graph.Task{&tes.Task{
     Id: "run2-126",
     Name: "Run2 S2",
+    State: tes.Complete,
     Description: "Mortar step 2 example",
     Executors: []*tes.Executor{
       {
