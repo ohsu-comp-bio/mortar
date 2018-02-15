@@ -11,6 +11,8 @@ import (
 
 type Run struct {
   ID string
+  // TODO want state string? so that it's easier to check the status of only
+  //      running runs?
 }
 
 func (r *Run) MarshalAQL() (*aql.Vertex, error) {
