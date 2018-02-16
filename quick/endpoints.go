@@ -8,7 +8,6 @@ import (
 	"github.com/ohsu-comp-bio/tes"
 )
 
-
 // TODO ideally, these models would directly reflect the models in the graph.
 type runStat struct {
 	Name      string
@@ -36,23 +35,23 @@ type respData struct {
 }
 
 type respData2 struct {
-	RunIDs      []string
-  StepIDs []string
+	RunIDs  []string
+	StepIDs []string
 
-	Steps     map[string]*graph.Step
-	Runs      map[string]*runStat
+	Steps map[string]*graph.Step
+	Runs  map[string]*runStat
 }
 
 // Run by step grid for workflow "wfid"
 func getData2(cli graph.Client, graphID, wfid string) *respData2 {
 
-  d := &respData2{
-    Steps: map[string]*graph.Step{},
-    Runs: map[string]*runStat{},
-  }
+	d := &respData2{
+		Steps: map[string]*graph.Step{},
+		Runs:  map[string]*runStat{},
+	}
 
-  // Get all steps in workflow
-  q := aql.NewQuery().
+	// Get all steps in workflow
+	q := aql.NewQuery().
 		V(wfid).
 		In("ktl.StepInWorkflow")
 
@@ -70,10 +69,10 @@ func getData2(cli graph.Client, graphID, wfid string) *respData2 {
 			continue
 		}
 		d.Steps[s.ID] = s
-    d.StepIDs = append(d.StepIDs, s.ID)
-  }
+		d.StepIDs = append(d.StepIDs, s.ID)
+	}
 
-  q = aql.NewQuery().
+	q = aql.NewQuery().
 		V(wfid).
 		In("ktl.RunForWorkflow")
 
@@ -83,14 +82,14 @@ func getData2(cli graph.Client, graphID, wfid string) *respData2 {
 	}
 	for row := range res {
 		v := row.Value.GetVertex()
-    run := getRun(cli, graphID, v.Gid)
-    d.RunIDs = append(d.RunIDs, v.Gid)
-    d.Runs[v.Gid] = run
-  }
+		run := getRun(cli, graphID, v.Gid)
+		d.RunIDs = append(d.RunIDs, v.Gid)
+		d.Runs[v.Gid] = run
+	}
 
 	sort.Strings(d.StepIDs)
 	sort.Strings(d.RunIDs)
-  return d
+	return d
 }
 
 func getData(cli graph.Client, graphID string) *respData {
@@ -106,15 +105,15 @@ func getData(cli graph.Client, graphID string) *respData {
 	wfIDs := map[string]bool{}
 	runIDs := map[string]bool{}
 
-  q := aql.NewQuery().
+	q := aql.NewQuery().
 		V().
-    // TODO want the ability to return a default empty value for run,
-    //      so that I can retrieve the workflows and runs in one query.
+		// TODO want the ability to return a default empty value for run,
+		//      so that I can retrieve the workflows and runs in one query.
 		HasLabel("ktl.Run").As("run").
 		Out("ktl.RunForWorkflow").As("workflow").
 		Select("run", "workflow")
 
-  log.Info("query", q)
+	log.Info("query", q)
 	res, err := cli.Execute(graphID, q)
 	if err != nil {
 		log.Error("ERR", err)
@@ -123,7 +122,7 @@ func getData(cli graph.Client, graphID string) *respData {
 	for row := range res {
 		runv := row.Row[0].GetVertex()
 		wfv := row.Row[1].GetVertex()
-    log.Info("row", row)
+		log.Info("row", row)
 		d.Workflows[wfv.Gid] = &wfStat{wfv.Gid}
 		wfIDs[wfv.Gid] = true
 		runIDs[runv.Gid] = true
@@ -148,14 +147,14 @@ func getData(cli graph.Client, graphID string) *respData {
 
 func getRun(cli graph.Client, graphID, runID string) *runStat {
 	d := &runStat{
-		Name: runID,
+		Name:      runID,
 		Steps:     map[string]*graph.Step{},
 		Tasks:     map[string]*tes.Task{},
 		StepTasks: map[string][]string{},
 	}
 
 	// Get all steps
-  q := aql.NewQuery().
+	q := aql.NewQuery().
 		V(runID).
 		Out("ktl.RunForWorkflow").
 		In("ktl.StepInWorkflow")
@@ -176,7 +175,7 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
 	}
 
 	// Get steps with a task
-  q = aql.NewQuery().
+	q = aql.NewQuery().
 		V(runID).
 		Out("ktl.RunForWorkflow").
 		In("ktl.StepInWorkflow").As("step").

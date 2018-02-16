@@ -63,7 +63,7 @@ class Home extends Component {
       var wfid = data.WorkflowIDs[i]
       var wf = data.Workflows[wfid]
       var cells = []
-      cells.push(<td key={"wf-name-" + wfid}>{wf.Name}</td>)
+      cells.push(<td key={"wf-name-" + wfid}><Link to={"/runs/" + wfid}>{wf.Name}</Link></td>)
 
       for (var j = 0; j < data.RunIDs.length; j++) {
         var rid = data.RunIDs[j]
@@ -74,7 +74,7 @@ class Home extends Component {
     }
 
     return (<div>
-      <h3>Mortar</h3>
+      <h3><Link to="/">Mortar</Link></h3>
       <table>
         <thead><tr>{header}</tr></thead>
         <tbody>{rows}</tbody>
@@ -130,7 +130,7 @@ class Run extends Component {
     console.log(run)
 
     return (<div>
-      <h3>Mortar Steps</h3>
+      <h3><Link to="/">Mortar</Link></h3>
       <table>
         <thead><tr>
           <th>Step</th>
@@ -151,7 +151,13 @@ class RunsForWorkflow extends Component {
   }
 
   componentDidMount() {
-    fetch("/data2.json")
+
+    var wfid = this.props.match.params.wfid
+    if (!wfid) {
+      return
+    }
+
+    fetch("/data/wf/"+wfid)
       .then(resp => resp.json())
       .then(data => this.setState({"data": data}))
   }
@@ -159,11 +165,6 @@ class RunsForWorkflow extends Component {
   render() {
     if (!this.state.data) {
       return <div>Loading</div>
-    }
-
-    var wfid = this.props.match.params.wfid
-    if (!wfid) {
-      return <div>Workflow not found</div>
     }
 
     var data = this.state.data
@@ -196,7 +197,7 @@ class RunsForWorkflow extends Component {
     console.log(run)
 
     return (<div>
-      <h3>Mortar Steps</h3>
+      <h3><Link to="/">Mortar</Link></h3>
       <table>
         <thead><tr>
           {header}

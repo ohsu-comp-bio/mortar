@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/bmeg/arachne/aql"
+	"github.com/gorilla/mux"
 	"github.com/ohsu-comp-bio/funnel/logger"
 	"github.com/ohsu-comp-bio/mortar/graph"
 	"github.com/ohsu-comp-bio/tes"
@@ -36,14 +38,16 @@ func main() {
 		fmt.Println("ERR", err)
 	}
 
+	r := mux.NewRouter()
+
 	// Prometheus metrics
-	http.HandleFunc("/metrics", func(resp http.ResponseWriter, req *http.Request) {
+	r.HandleFunc("/metrics", func(resp http.ResponseWriter, req *http.Request) {
 		updateMetrics(cli, graphID)
 		promhttp.Handler().ServeHTTP(resp, req)
 	})
 
 	// JSON data for run/workflow/step/etc status
-	http.HandleFunc("/data.json", func(resp http.ResponseWriter, req *http.Request) {
+	r.HandleFunc("/data.json", func(resp http.ResponseWriter, req *http.Request) {
 		d := getData(cli, graphID)
 		enc := json.NewEncoder(resp)
 		enc.SetIndent("", "  ")
@@ -51,22 +55,34 @@ func main() {
 	})
 
 	// JSON data for run/workflow/step/etc status
-	http.HandleFunc("/data2.json", func(resp http.ResponseWriter, req *http.Request) {
-		d := getData2(cli, graphID, "WF1")
+	r.HandleFunc("/data/wf/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		wfid, ok := vars["wfid"]
+		if !ok {
+			return
+		}
+		d := getData2(cli, graphID, wfid)
 		enc := json.NewEncoder(resp)
 		enc.SetIndent("", "  ")
 		enc.Encode(d)
 	})
 
 	// Root web application
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("build/web"))))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("build/web"))))
 
-	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
+	r.PathPrefix("/").HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		http.ServeFile(resp, req, "build/web/index.html")
 	})
 
+	srv := http.Server{
+		Handler:      r,
+		Addr:         ":9653",
+		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  10 * time.Second,
+	}
+
 	log.Info("listening", "http://localhost:9653")
-	http.ListenAndServe(":9653", nil)
+	srv.ListenAndServe()
 }
 
 type ByCreationTime []*tes.Task
