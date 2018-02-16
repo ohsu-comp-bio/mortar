@@ -64,15 +64,15 @@ func run(conf Config) error {
 		}
 
 		events.WriteEvent(task.Task, ev)
-    b := &graph.Batch{}
-    b.AddVertex(task)
+		b := &graph.Batch{}
+		b.AddVertex(task)
 
 		switch ev.Type {
 		case events.Type_TASK_CREATED:
 
 			if sID, ok := task.Tags["ktl.StepID"]; ok {
 				step := &graph.Step{ID: sID}
-        b.AddEdge(graph.TaskForStep(task, step))
+				b.AddEdge(graph.TaskForStep(task, step))
 			}
 
 			for _, input := range task.Inputs {
@@ -82,36 +82,36 @@ func run(conf Config) error {
 				}
 
 				iv := &graph.File{input.Url, input.Type}
-        b.AddVertex(iv)
-        b.AddEdge(graph.TaskRequestsInput(task, iv))
+				b.AddVertex(iv)
+				b.AddEdge(graph.TaskRequestsInput(task, iv))
 			}
 
 			for _, output := range task.Outputs {
 				ov := &graph.File{output.Url, output.Type}
-        b.AddVertex(ov)
-        b.AddEdge(graph.TaskRequestsOutput(task, ov))
+				b.AddVertex(ov)
+				b.AddEdge(graph.TaskRequestsOutput(task, ov))
 			}
 
 			for _, exec := range task.Executors {
 				iv := &graph.Image{exec.Image}
-        b.AddVertex(iv)
-        b.AddEdge(graph.TaskRequestsImage(task, iv))
+				b.AddVertex(iv)
+				b.AddEdge(graph.TaskRequestsImage(task, iv))
 			}
 
 		case events.Type_TASK_OUTPUTS:
 			outputs := ev.GetOutputs().Value
 			for _, output := range outputs {
 				ov := &graph.File{URL: output.Url}
-        b.AddVertex(ov)
-        b.AddEdge(graph.TaskUploadedOutput(task, ov))
+				b.AddVertex(ov)
+				b.AddEdge(graph.TaskUploadedOutput(task, ov))
 			}
 		}
 
-    err = cli.AddBatch(b)
-    if err != nil {
-      log.Error("add batch failed", err)
-      continue
-    }
+		err = cli.AddBatch(b)
+		if err != nil {
+			log.Error("add batch failed", err)
+			continue
+		}
 
 		counter.Inc()
 	}

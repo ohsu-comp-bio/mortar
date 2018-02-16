@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/bmeg/arachne/aql"
@@ -30,31 +32,32 @@ type Client struct {
 }
 
 type Batch struct {
-  Edges []Edge
-  Verts []Vertex
+	Edges []Edge
+	Verts []Vertex
 }
+
 func (b *Batch) AddVertex(v Vertex) {
-  b.Verts = append(b.Verts, v)
+	b.Verts = append(b.Verts, v)
 }
 func (b *Batch) AddEdge(e Edge) {
-  b.Edges = append(b.Edges, e)
+	b.Edges = append(b.Edges, e)
 }
 
 func (c *Client) AddBatch(b *Batch) error {
-  // TODO what we really want is transaction semantics with rollback
-  for _, v := range b.Verts {
-    err := c.AddVertex(v)
-    if err != nil {
-      return fmt.Errorf("while adding vertex from batch: %s", err)
-    }
-  }
-  for _, e := range b.Edges {
-    err := c.AddEdge(e)
-    if err != nil {
-      return fmt.Errorf("while adding edge from batch: %s", err)
-    }
-  }
-  return nil
+	// TODO what we really want is transaction semantics with rollback
+	for _, v := range b.Verts {
+		err := c.AddVertex(v)
+		if err != nil {
+			return fmt.Errorf("while adding vertex from batch: %s", err)
+		}
+	}
+	for _, e := range b.Edges {
+		err := c.AddEdge(e)
+		if err != nil {
+			return fmt.Errorf("while adding edge from batch: %s", err)
+		}
+	}
+	return nil
 }
 
 // TODO finish wrapping client, and try to move this into arachne
@@ -84,14 +87,15 @@ func (c *Client) GetVertex(id string) (*aql.Vertex, error) {
 
 // Marshal marshals a proto.Message into a structpb.Struct.
 // Useful for preparing arachne requests.
-func Marshal(msg proto.Message) (*structpb.Struct, error) {
-	s, err := mar.MarshalToString(msg)
+func Marshal(i interface{}) (*structpb.Struct, error) {
+	b, err := json.Marshal(i)
 	if err != nil {
 		return nil, err
 	}
 
+	by := bytes.NewBuffer(b)
 	st := &structpb.Struct{}
-	err = jsonpb.UnmarshalString(s, st)
+	err = jsonpb.Unmarshal(by, st)
 	if err != nil {
 		return nil, err
 	}
@@ -99,15 +103,24 @@ func Marshal(msg proto.Message) (*structpb.Struct, error) {
 	return st, nil
 }
 
-// Unmarshal unmarshals a structpb.Struct into a proto.Message.
+// UnmarshalMessage unmarshals a structpb.Struct into a proto.Message.
 // Useful for unmarshaling arachne responses.
-func Unmarshal(st *structpb.Struct, msg proto.Message) error {
+func UnmarshalMessage(st *structpb.Struct, msg proto.Message) error {
 	b, err := mar.MarshalToString(st)
 	if err != nil {
 		return err
 	}
 
 	return jsonpb.UnmarshalString(b, msg)
+}
+
+func Unmarshal(st *structpb.Struct, i interface{}) error {
+	var b bytes.Buffer
+	err := mar.Marshal(&b, st)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b.Bytes(), i)
 }
 
 type edge struct {
