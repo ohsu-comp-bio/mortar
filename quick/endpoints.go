@@ -3,6 +3,7 @@ package main
 import (
 	"sort"
 
+	"github.com/bmeg/arachne/aql"
 	"github.com/ohsu-comp-bio/mortar/graph"
 	"github.com/ohsu-comp-bio/tes"
 )
@@ -24,14 +25,72 @@ type wfStat struct {
 }
 
 type respData struct {
-	// Why separate IDs from data you ask?
+	// Why separate IDs from the data you ask?
 	// Because this data is rendered into a sparse table.
-	// The workflow and run data maps, might not contain entries for all table cells.
+	// The workflow and run data maps might not contain entries for all table cells.
 	WorkflowIDs []string
 	RunIDs      []string
 
 	Workflows map[string]*wfStat
 	Runs      map[string]*runStat
+}
+
+type respData2 struct {
+	RunIDs      []string
+  StepIDs []string
+
+	Steps     map[string]*graph.Step
+	Runs      map[string]*runStat
+}
+
+// Run by step grid for workflow "wfid"
+func getData2(cli graph.Client, graphID, wfid string) *respData2 {
+
+  d := &respData2{
+    Steps: map[string]*graph.Step{},
+    Runs: map[string]*runStat{},
+  }
+
+  // Get all steps in workflow
+  q := aql.NewQuery().
+		V(wfid).
+		In("ktl.StepInWorkflow")
+
+	res, err := cli.Execute(graphID, q)
+	if err != nil {
+		log.Error("ERR", err)
+	}
+
+	for row := range res {
+		v := row.Value.GetVertex()
+		s := &graph.Step{Task: &tes.Task{}}
+		err := graph.Unmarshal(v.Data, s)
+		if err != nil {
+			log.Error("Err", err)
+			continue
+		}
+		d.Steps[s.ID] = s
+    d.StepIDs = append(d.StepIDs, s.ID)
+  }
+
+  q = aql.NewQuery().
+		V(wfid).
+		In("ktl.RunForWorkflow")
+
+	res, err = cli.Execute(graphID, q)
+	if err != nil {
+		log.Error("ERR", err)
+	}
+	for row := range res {
+		v := row.Value.GetVertex()
+    run := getRun(cli, graphID, v.Gid)
+    d.RunIDs = append(d.RunIDs, v.Gid)
+    d.Runs[v.Gid] = run
+  }
+
+	sort.Strings(d.StepIDs)
+	sort.Strings(d.RunIDs)
+  return d
 }
 
 func getData(cli graph.Client, graphID string) *respData {
@@ -47,13 +106,16 @@ func getData(cli graph.Client, graphID string) *respData {
 	wfIDs := map[string]bool{}
 	runIDs := map[string]bool{}
 
-	res, err := cli.Query(graphID).
+  q := aql.NewQuery().
 		V().
+    // TODO want the ability to return a default empty value for run,
+    //      so that I can retrieve the workflows and runs in one query.
 		HasLabel("ktl.Run").As("run").
 		Out("ktl.RunForWorkflow").As("workflow").
-		Select("run", "workflow").
-		Execute()
+		Select("run", "workflow")
 
+  log.Info("query", q)
+	res, err := cli.Execute(graphID, q)
 	if err != nil {
 		log.Error("ERR", err)
 	}
@@ -61,6 +123,7 @@ func getData(cli graph.Client, graphID string) *respData {
 	for row := range res {
 		runv := row.Row[0].GetVertex()
 		wfv := row.Row[1].GetVertex()
+    log.Info("row", row)
 		d.Workflows[wfv.Gid] = &wfStat{wfv.Gid}
 		wfIDs[wfv.Gid] = true
 		runIDs[runv.Gid] = true
@@ -92,12 +155,12 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
 	}
 
 	// Get all steps
-	res, err := cli.Query(graphID).
+  q := aql.NewQuery().
 		V(runID).
 		Out("ktl.RunForWorkflow").
-		In("ktl.StepInWorkflow").
-		Execute()
+		In("ktl.StepInWorkflow")
 
+	res, err := cli.Execute(graphID, q)
 	if err != nil {
 		log.Error("ERR", err)
 	}
@@ -113,16 +176,16 @@ func getRun(cli graph.Client, graphID, runID string) *runStat {
 	}
 
 	// Get steps with a task
-	res, err = cli.Query(graphID).
+  q = aql.NewQuery().
 		V(runID).
 		Out("ktl.RunForWorkflow").
 		In("ktl.StepInWorkflow").As("step").
 		In("ktl.TaskForStep").As("task").
 		Out("ktl.TaskForRun").
-		HasId(runID).
-		Select("step", "task").
-		Execute()
+		HasID(runID).
+		Select("step", "task")
 
+	res, err = cli.Execute(graphID, q)
 	if err != nil {
 		log.Error("ERR", err)
 	}

@@ -50,6 +50,14 @@ func main() {
 		enc.Encode(d)
 	})
 
+	// JSON data for run/workflow/step/etc status
+	http.HandleFunc("/data2.json", func(resp http.ResponseWriter, req *http.Request) {
+		d := getData2(cli, graphID, "WF1")
+		enc := json.NewEncoder(resp)
+		enc.SetIndent("", "  ")
+		enc.Encode(d)
+	})
+
 	// Root web application
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("build/web"))))
 
