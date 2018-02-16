@@ -62,6 +62,7 @@ func getData2(cli graph.Client, graphID, wfid string) *respData2 {
 
 	for row := range res {
 		v := row.Value.GetVertex()
+		// TODO determine whether this is necessary. panic on nil Task from Unmarshal?
 		s := &graph.Step{Task: &tes.Task{}}
 		err := graph.Unmarshal(v.Data, s)
 		if err != nil {
