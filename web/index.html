@@ -1,81 +1,12 @@
-
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Hello World</title>
-    <script src="react.development.js"></script>
-    <script src="react-dom.development.js"></script>
-    <script src="babel.min.js"></script>
-    <style>
-      .complete {
-        background-color: #96ff62;
-      }
-      td {
-        text-align: center;
-        padding: 5px 10px;
-      }
-    </style>
+    <title>Mortar</title>
   </head>
 
   <body>
-    <div id="root">
-
-    </div>
-    <script type="text/babel">
-      fetch("/data.json").then(function(resp) {
-        resp.json().then(function(data) {
-          console.log(data)
-          var dat = JSON.stringify(data);
-
-          var rows = [];
-          var header = [<th key="empty"></th>]
-          for (var j = 0; j < data["RunIDs"].length; j++) {
-            var rid = data["RunIDs"][j];
-            var run = data["Runs"][rid];
-            header.push(<th key={"run-th-" + rid}>{run.Name}</th>);
-          }
-
-          for (var i = 0; i < data["WorkflowIDs"].length; i++) {
-            var wfid = data["WorkflowIDs"][i];
-            var wf = data["Workflows"][wfid];
-            var cells = [];
-            cells.push(<td key={"wf-name-" + wfid}>{wf.Name}</td>);
-            for (var j = 0; j < data["RunIDs"].length; j++) {
-              var rid = data["RunIDs"][j];
-              var run = data["Runs"][rid];
-              var classname = "";
-              if (run.Total == run.Complete) {
-                classname = "complete";
-              }
-              cells.push(<td key={"run-" + rid} className={classname}>{run.Complete} / {run.Total}</td>);
-            }
-            rows.push(<tr key={"wf-" + wfid}>{cells}</tr>);
-          }
-
-          ReactDOM.render(
-            (<div>
-              <h3>Mortar</h3>
-              <table>
-                <thead><tr>{header}</tr></thead>
-                <tbody>{rows}</tbody>
-              </table>
-            </div>),
-            document.getElementById('root')
-          );
-
-        })
-      })
-
-      ReactDOM.render(
-        (<div>
-          <h3>Mortar</h3><div>Loading</div>
-        </div>),
-        document.getElementById('root')
-      );
-
-    </script>
+    <div id="root"></div>
+    <script type="text/javascript" src="/static/build.js"></script>
   </body>
 </html>
-
-

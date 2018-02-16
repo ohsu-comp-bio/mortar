@@ -1,0 +1,46 @@
+{
+  "name": "mortar",
+  "version": "0.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ohsu-comp-bio/mortar.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ohsu-comp-bio/mortar/issues"
+  },
+  "homepage": "https://github.com/ohsu-comp-bio/mortar#readme",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-react": "^6.24.1",
+    "babelify": "^8.0.0",
+    "browserify": "^16.1.0",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
+    "react-router": "^4.2.0",
+    "react-router-dom": "^4.2.2",
+    "watchify": "^3.10.0"
+  },
+  "browserify": {
+    "transform": [
+      [
+        "babelify",
+        {
+          "comments": false
+        }
+      ]
+    ]
+  },
+  "babel": {
+    "presets": [
+      "react",
+      "env"
+    ]
+  }
+}

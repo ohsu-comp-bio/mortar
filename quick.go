@@ -85,19 +85,27 @@ func main() {
     fmt.Println("ERR", err)
   }
 
-  http.Handle("/", http.FileServer(http.Dir("web")))
-
+  // Prometheus metrics
   http.HandleFunc("/metrics", func(resp http.ResponseWriter, req *http.Request) {
     updateMetrics(cli, graphID)
     promhttp.Handler().ServeHTTP(resp, req)
   })
+
+  // JSON data for run/workflow/step/etc status
   http.HandleFunc("/data.json", func(resp http.ResponseWriter, req *http.Request) {
-
     d := getData(cli, graphID)
-
     enc := json.NewEncoder(resp)
+    enc.SetIndent("", "  ")
     enc.Encode(d)
   })
+
+  // Root web application
+  http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("build/web"))))
+
+  http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
+    http.ServeFile(resp, req, "build/web/index.html")
+  })
+
   log.Info("listening", "http://localhost:9653")
   http.ListenAndServe(":9653", nil)
 }
@@ -151,6 +159,8 @@ func getData(cli graph.Client, graphID string) *respData {
     d.Runs[rid] = getRun(cli, graphID, rid)
   }
 
+  // TODO think of a more meaningful sort field.
+  //      is sorting by ID the right order in all cases?
   sort.Strings(d.WorkflowIDs)
   sort.Strings(d.RunIDs)
 
