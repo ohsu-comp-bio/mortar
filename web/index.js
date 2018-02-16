@@ -96,14 +96,33 @@ class Run extends Component {
     var stepIDs = Object.keys(run.Steps).sort()
     var rows = []
 
+    var stateMap = {
+      "COMPLETE": "Complete",
+      "RUNNING": "Running",
+      "INITIALIZING": "Initializing",
+      "SYSTEM_ERROR": "Error",
+      "EXECUTOR_ERROR": "Error",
+      "CANCELED": "Canceled",
+    }
+
     for (var sid of stepIDs) {
       var step = run.Steps[sid]
       var tasks = run.StepTasks[sid]
-      var task = run.Tasks[tasks[0]]
+      var state = "Not Started"
+
+      if (tasks && tasks.length > 0) {
+        var latestID = tasks[0]
+        var task = run.Tasks[latestID]
+        state = stateMap[task.state]
+
+        if (!state) {
+          state = "Unknown"
+        }
+      }
 
       rows.push(<tr key={"step-tr-" + sid}>
         <td>{step.gid}</td>
-        <td>{task.state}</td>
+        <td>{state}</td>
       </tr>)
     }
     console.log(run)
