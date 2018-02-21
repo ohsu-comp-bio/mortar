@@ -50,8 +50,8 @@ class Home extends Component {
     var evts = new EventSource('/sub/workflowRuns.json')
 
     evts.onmessage = (e) => {
-      var data = JSON.parse(e.data)
-      this.setState({"data": data})
+      //var data = JSON.parse(e.data)
+      //this.setState({"data": data})
     }
     evts.onerror = function() {
       //console.log('event source error', arguments)
@@ -69,17 +69,18 @@ class Home extends Component {
     }
 
     var data = this.state.data
+    var headers = data.Columns.map(col => (<td>{col}</td>))
     var rows = []
 
-    for (var i = 0; i < data.Workflows.length; i++) {
-      var wf = data.Workflows[i]
+    for (var i = 0; i < data.Rows.length; i++) {
+      var row = data.Rows[i]
 
       var cells = data.Columns.map(col => {
-        return Cell(wf.RunsByColumn[col])
+        return Cell(data.Cells[row + "-" + col])
       })
 
-      rows.push(<tr key={"wf-" + wf.ID}>
-        <td><Link to={"/workflow/" + wf.ID}>{wf.ID}</Link></td>
+      rows.push(<tr key={"row-" + row}>
+        <td><Link to={"/workflow/" + row}>{row}</Link></td>
         { cells }
       </tr>)
     }
@@ -87,6 +88,9 @@ class Home extends Component {
     return (<div>
       <h3><Link to="/">Mortar</Link></h3>
       <table>
+        <thead>
+          <tr><td></td>{headers}</tr>
+        </thead>
         <tbody>{rows}</tbody>
       </table>
     </div>)

@@ -73,8 +73,8 @@ func ingest(conf Config) error {
 		case events.Type_TASK_CREATED:
 
 			// TODO step IDs need to be globally unique
-			stepID := task.Tags["mortar.StepID"]
-			runID := task.Tags["mortar.RunID"]
+			stepID := task.Tags["ktl.StepID"]
+			runID := task.Tags["ktl.RunID"]
 
 			if stepID == "" {
 				log.Error("missing stepID")

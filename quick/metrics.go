@@ -31,11 +31,11 @@ func init() {
 }
 
 func updateMetrics(cli *graph.Client) {
-	d := getWorkflowRuns(cli)
+	d := getWorkflowStatuses(cli)
 	// TODO this is supposed to be for all runs, but it's using a more complex
 	//      data endpoint getWorkflowRuns().
-	for _, wf := range d.Workflows {
-		for _, run := range wf.RunsByColumn {
+	for _, wf := range d {
+		for _, run := range wf.Runs {
 			completeGauge.WithLabelValues(run.ID).Set(float64(run.Complete))
 			totalGauge.WithLabelValues(run.ID).Set(float64(run.Total))
 		}

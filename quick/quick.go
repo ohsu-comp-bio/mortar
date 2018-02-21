@@ -93,17 +93,19 @@ func main() {
 		enc.Encode(d)
 	})
 
-	r.HandleFunc("/runsByStep/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
-		vars := mux.Vars(req)
-		wfid, ok := vars["wfid"]
-		if !ok {
-			return
-		}
-		d := getRunsByStep(cli, wfid)
-		enc := json.NewEncoder(resp)
-		enc.SetIndent("", "  ")
-		enc.Encode(d)
-	})
+	/*
+		r.HandleFunc("/runsByStep/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
+			vars := mux.Vars(req)
+			wfid, ok := vars["wfid"]
+			if !ok {
+				return
+			}
+			d := getRunsByStep(cli, wfid)
+			enc := json.NewEncoder(resp)
+			enc.SetIndent("", "  ")
+			enc.Encode(d)
+		})
+	*/
 
 	// Root web application
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("build/web"))))
