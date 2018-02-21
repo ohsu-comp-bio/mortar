@@ -69,6 +69,7 @@ func getWorkflowRuns(cli *graph.Client) *workflowRuns {
 
 			cellKey := wf.ID + "-" + col
 			d.Cells[cellKey] = run
+			run.Steps = nil
 		}
 	}
 

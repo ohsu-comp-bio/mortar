@@ -47,15 +47,6 @@ class Home extends Component {
 
   componentDidMount() {
     this.fetchData()
-    var evts = new EventSource('/sub/workflowRuns.json')
-
-    evts.onmessage = (e) => {
-      //var data = JSON.parse(e.data)
-      //this.setState({"data": data})
-    }
-    evts.onerror = function() {
-      //console.log('event source error', arguments)
-    }
   }
 
   componentWillUnmount() {
@@ -96,9 +87,6 @@ class Home extends Component {
     </div>)
   }
 }
-
-const Row = (wf, run) => (<tr>
-</tr>)
 
 const Time = {
   Second: 1000,

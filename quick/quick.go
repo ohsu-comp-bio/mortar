@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alexandrevicenzi/go-sse"
 	"github.com/bmeg/arachne/aql"
 	"github.com/gorilla/mux"
 	"github.com/ohsu-comp-bio/funnel/logger"
@@ -60,26 +59,16 @@ func main() {
 		}
 
 	})
-
-	sses := sse.NewServer(nil)
-	defer sses.Shutdown()
-
-	go func() {
-		for {
-			d := getWorkflowRuns(cli)
-
-			b, err := json.Marshal(d)
-			if err != nil {
-				log.Error("publishing", err)
-				continue
-			}
-
-			sses.SendMessage("/sub/workflowRuns.json", sse.SimpleMessage(string(b)))
-			time.Sleep(5 * time.Second)
+	r.HandleFunc("/workflowStatuses.json", func(resp http.ResponseWriter, req *http.Request) {
+		d := getWorkflowStatuses(cli)
+		enc := json.NewEncoder(resp)
+		enc.SetIndent("", "  ")
+		err := enc.Encode(d)
+		if err != nil {
+			panic(err)
 		}
-	}()
 
-	r.Handle("/sub/workflowRuns.json", sses)
+	})
 
 	r.HandleFunc("/workflow/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
@@ -118,14 +107,15 @@ func main() {
 	srv := http.Server{
 		Handler:      r,
 		Addr:         ":9653",
-		WriteTimeout: 10 * time.Second,
-		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  30 * time.Second,
 	}
 
-	log.Info("listening", "https://localhost:9653")
-	//srv.ListenAndServe()
+	log.Info("listening", "http://localhost:9653")
+	srv.ListenAndServe()
 
-	srv.ListenAndServeTLS("cert.pem", "key.pem")
+	//log.Info("listening", "https://localhost:9653")
+	//srv.ListenAndServeTLS("cert.pem", "key.pem")
 }
 
 type ByCreationTime []*tes.Task
