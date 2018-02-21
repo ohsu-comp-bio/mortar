@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alexandrevicenzi/go-sse"
 	"github.com/bmeg/arachne/aql"
 	"github.com/gorilla/mux"
 	"github.com/ohsu-comp-bio/funnel/logger"
@@ -19,7 +20,7 @@ var log = logger.NewLogger("quick", logger.DefaultConfig())
 func main() {
 
 	server := "localhost:8202"
-	graphID := "quick"
+	graphID := "mortar"
 
 	acli, err := aql.Connect(server, true)
 	if err != nil {
@@ -31,37 +32,74 @@ func main() {
 		panic(err)
 	}
 
-	cli := graph.Client{Client: &acli, Graph: graphID}
+	cli := &graph.Client{Client: &acli, Graph: graphID}
 
-	b := makeData()
-	if err := cli.AddBatch(b); err != nil {
-		fmt.Println("ERR", err)
-	}
+	/*
+		b := makeData()
+		if err := cli.AddBatch(b); err != nil {
+			fmt.Println("ERR", err)
+		}
+	*/
 
 	r := mux.NewRouter()
 
 	// Prometheus metrics
 	r.HandleFunc("/metrics", func(resp http.ResponseWriter, req *http.Request) {
-		updateMetrics(cli, graphID)
+		updateMetrics(cli)
 		promhttp.Handler().ServeHTTP(resp, req)
 	})
 
 	// JSON data for run/workflow/step/etc status
-	r.HandleFunc("/data.json", func(resp http.ResponseWriter, req *http.Request) {
-		d := getData(cli, graphID)
+	r.HandleFunc("/workflowRuns.json", func(resp http.ResponseWriter, req *http.Request) {
+		d := getWorkflowRuns(cli)
 		enc := json.NewEncoder(resp)
 		enc.SetIndent("", "  ")
-		enc.Encode(d)
+		err := enc.Encode(d)
+		if err != nil {
+			panic(err)
+		}
+
 	})
 
-	// JSON data for run/workflow/step/etc status
-	r.HandleFunc("/data/wf/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
+	sses := sse.NewServer(nil)
+	defer sses.Shutdown()
+
+	go func() {
+		for {
+			d := getWorkflowRuns(cli)
+
+			b, err := json.Marshal(d)
+			if err != nil {
+				log.Error("publishing", err)
+				continue
+			}
+
+			sses.SendMessage("/sub/workflowRuns.json", sse.SimpleMessage(string(b)))
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	r.Handle("/sub/workflowRuns.json", sses)
+
+	r.HandleFunc("/workflow/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		wfid, ok := vars["wfid"]
 		if !ok {
 			return
 		}
-		d := getData2(cli, graphID, wfid)
+		d := getWorkflowInfo(cli, wfid)
+		enc := json.NewEncoder(resp)
+		enc.SetIndent("", "  ")
+		enc.Encode(d)
+	})
+
+	r.HandleFunc("/runsByStep/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		wfid, ok := vars["wfid"]
+		if !ok {
+			return
+		}
+		d := getRunsByStep(cli, wfid)
 		enc := json.NewEncoder(resp)
 		enc.SetIndent("", "  ")
 		enc.Encode(d)
@@ -70,6 +108,7 @@ func main() {
 	// Root web application
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("build/web"))))
 
+	// TODO this is far too general. doesn't handle 404s.
 	r.PathPrefix("/").HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		http.ServeFile(resp, req, "build/web/index.html")
 	})
@@ -81,8 +120,10 @@ func main() {
 		ReadTimeout:  10 * time.Second,
 	}
 
-	log.Info("listening", "http://localhost:9653")
-	srv.ListenAndServe()
+	log.Info("listening", "https://localhost:9653")
+	//srv.ListenAndServe()
+
+	srv.ListenAndServeTLS("cert.pem", "key.pem")
 }
 
 type ByCreationTime []*tes.Task

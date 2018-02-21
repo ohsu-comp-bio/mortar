@@ -16,7 +16,7 @@ func init() {
 		Use:  "runsmc",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(conf)
+			return runSmchet(conf)
 		},
 	}
 	cmd.AddCommand(&runCmd)
@@ -85,8 +85,8 @@ func runSmchet(conf Config) error {
 			continue
 		}
 
-		run := &graph.Run{evID}
-		wf := &graph.Workflow{enID}
+		run := &graph.Run{ID: evID}
+		wf := &graph.Workflow{ID: enID}
 		step := &graph.Step{ID: tnID}
 
 		b := &graph.Batch{}

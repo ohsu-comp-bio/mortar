@@ -11,7 +11,7 @@ func makeData() *graph.Batch {
 
 	wf1 := &graph.Workflow{"WF1"}
 
-	s1 := &graph.Step{"S1", &tes.Task{
+	s1 := &graph.Step{"S1"} /*, &tes.Task{
 		Name:        "S1",
 		Description: "Mortar step example",
 		Executors: []*tes.Executor{
@@ -21,8 +21,9 @@ func makeData() *graph.Batch {
 			},
 		},
 	}}
+	*/
 
-	s2 := &graph.Step{"S2", &tes.Task{
+	s2 := &graph.Step{"S2"} /*, &tes.Task{
 		Name:        "S2",
 		Description: "Mortar step 2 example",
 		Executors: []*tes.Executor{
@@ -32,8 +33,9 @@ func makeData() *graph.Batch {
 			},
 		},
 	}}
+	*/
 
-	s3 := &graph.Step{"S3", &tes.Task{
+	s3 := &graph.Step{"S3"} /*, &tes.Task{
 		Name:        "S3",
 		Description: "Mortar step 3 example",
 		Executors: []*tes.Executor{
@@ -43,6 +45,7 @@ func makeData() *graph.Batch {
 			},
 		},
 	}}
+	*/
 
 	r1t1 := &graph.Task{&tes.Task{
 		Id:          "run1-123",
@@ -105,8 +108,8 @@ func makeData() *graph.Batch {
 		},
 	}}
 
-	r1 := &graph.Run{"Run 1"}
-	r2 := &graph.Run{"Run 2"}
+	r1 := &graph.Run{"Run 1", "Sample 1"}
+	r2 := &graph.Run{"Run 2", "Sample 1"}
 
 	b.AddVertex(wf1)
 	b.AddVertex(s1)

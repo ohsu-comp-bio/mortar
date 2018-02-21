@@ -27,7 +27,7 @@ type ArachneConfig struct {
 // DefaultArachneConfig returns the default arachne database configuration.
 func DefaultArachneConfig() ArachneConfig {
 	return ArachneConfig{
-		Server: "localhost:5757",
+		Server: "localhost:8202",
 		Graph:  "mortar",
 	}
 }

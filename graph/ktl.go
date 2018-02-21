@@ -4,21 +4,23 @@ import (
 	"fmt"
 
 	"github.com/bmeg/arachne/aql"
-	"github.com/ohsu-comp-bio/tes"
+	//"github.com/ohsu-comp-bio/tes"
 )
 
 // TODO need names for the difference between workflow descriptor and invocation
 
 type Run struct {
-	ID string
-	// TODO want state string? so that it's easier to check the status of only
-	//      running runs?
+	ID     string
+	Sample string
 }
 
 func (r *Run) MarshalAQL() (*aql.Vertex, error) {
+	d, _ := Marshal(map[string]string{"Sample": r.Sample})
+
 	return &aql.Vertex{
 		Gid:   r.ID,
 		Label: "ktl.Run",
+		Data:  d,
 	}, nil
 }
 
@@ -48,12 +50,6 @@ func StepInWorkflow(step *Step, wf *Workflow) Edge {
 // Step describes a step in a ktl workflow.
 type Step struct {
 	ID string
-	// Reusing tes.Task to describe a step,
-	// but stateful fields (state, logs, execution data)
-	// should be ignored.
-	// Possibly just a placeholder?
-	// Does TES need a stateless task description?
-	Task *tes.Task
 }
 
 // MarshalAQL marshals the vertex into an arachne AQL vertex.

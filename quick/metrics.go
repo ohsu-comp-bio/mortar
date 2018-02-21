@@ -30,10 +30,14 @@ func init() {
 	prometheus.MustRegister(totalGauge)
 }
 
-func updateMetrics(cli graph.Client, graphID string) {
-	d := getData(cli, graphID)
-	for rid, run := range d.Runs {
-		completeGauge.WithLabelValues(rid).Set(float64(run.Complete))
-		totalGauge.WithLabelValues(rid).Set(float64(run.Total))
+func updateMetrics(cli *graph.Client) {
+	d := getWorkflowRuns(cli)
+	// TODO this is supposed to be for all runs, but it's using a more complex
+	//      data endpoint getWorkflowRuns().
+	for _, wf := range d.Workflows {
+		for _, run := range wf.RunsByColumn {
+			completeGauge.WithLabelValues(run.ID).Set(float64(run.Complete))
+			totalGauge.WithLabelValues(run.ID).Set(float64(run.Total))
+		}
 	}
 }

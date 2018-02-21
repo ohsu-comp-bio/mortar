@@ -8,218 +8,254 @@ import (
 	"github.com/ohsu-comp-bio/tes"
 )
 
-// TODO ideally, these models would directly reflect the models in the graph.
-type runStat struct {
-	Name      string
-	Total     int
-	Complete  int
-	Steps     map[string]*graph.Step
-	Tasks     map[string]*tes.Task
-	StepTasks map[string][]string
+type workflowInfo struct {
+	ID    string
+	Steps []*graph.Step
 }
 
-type wfStat struct {
-	Name string
-	// TODO there will be more here later.
-}
-
-type respData struct {
-	// Why separate IDs from the data you ask?
-	// Because this data is rendered into a sparse table.
-	// The workflow and run data maps might not contain entries for all table cells.
-	WorkflowIDs []string
-	RunIDs      []string
-
-	Workflows map[string]*wfStat
-	Runs      map[string]*runStat
-}
-
-type respData2 struct {
-	RunIDs  []string
-	StepIDs []string
-
-	Steps map[string]*graph.Step
-	Runs  map[string]*runStat
-}
-
-// Run by step grid for workflow "wfid"
-func getData2(cli graph.Client, graphID, wfid string) *respData2 {
-
-	d := &respData2{
-		Steps: map[string]*graph.Step{},
-		Runs:  map[string]*runStat{},
+func getWorkflowInfo(cli *graph.Client, wfID string) *workflowInfo {
+	d := &workflowInfo{
+		ID:    wfID,
+		Steps: []*graph.Step{},
 	}
 
-	// Get all steps in workflow
-	q := aql.NewQuery().
-		V(wfid).
-		In("ktl.StepInWorkflow")
-
-	res, err := cli.Execute(graphID, q)
+	// Get all steps in the workflow.
+	q := aql.V(wfID).In("ktl.StepInWorkflow")
+	res, err := cli.Execute(q)
 	if err != nil {
-		log.Error("ERR", err)
+		panic(err)
 	}
 
 	for row := range res {
 		v := row.Value.GetVertex()
-		// TODO determine whether this is necessary. panic on nil Task from Unmarshal?
-		s := &graph.Step{Task: &tes.Task{}}
-		err := graph.Unmarshal(v.Data, s)
-		if err != nil {
-			log.Error("Err", err)
-			continue
-		}
-		d.Steps[s.ID] = s
-		d.StepIDs = append(d.StepIDs, s.ID)
+		d.Steps = append(d.Steps, &graph.Step{v.Gid})
 	}
-
-	q = aql.NewQuery().
-		V(wfid).
-		In("ktl.RunForWorkflow")
-
-	res, err = cli.Execute(graphID, q)
-	if err != nil {
-		log.Error("ERR", err)
-	}
-	for row := range res {
-		v := row.Value.GetVertex()
-		run := getRun(cli, graphID, v.Gid)
-		d.RunIDs = append(d.RunIDs, v.Gid)
-		d.Runs[v.Gid] = run
-	}
-
-	sort.Strings(d.StepIDs)
-	sort.Strings(d.RunIDs)
-	return d
-}
-
-func getData(cli graph.Client, graphID string) *respData {
-	// TODO it is quite annoying to figure out how to best construct this data
-	//      in the absence of DB sorting and grouping
-
-	d := &respData{
-		Workflows: map[string]*wfStat{},
-		Runs:      map[string]*runStat{},
-	}
-
-	// TODO did I mention how complicated this is? I want grouping
-	wfIDs := map[string]bool{}
-	runIDs := map[string]bool{}
-
-	q := aql.NewQuery().
-		V().
-		// TODO want the ability to return a default empty value for run,
-		//      so that I can retrieve the workflows and runs in one query.
-		HasLabel("ktl.Run").As("run").
-		Out("ktl.RunForWorkflow").As("workflow").
-		Select("run", "workflow")
-
-	log.Info("query", q)
-	res, err := cli.Execute(graphID, q)
-	if err != nil {
-		log.Error("ERR", err)
-	}
-
-	for row := range res {
-		runv := row.Row[0].GetVertex()
-		wfv := row.Row[1].GetVertex()
-		log.Info("row", row)
-		d.Workflows[wfv.Gid] = &wfStat{wfv.Gid}
-		wfIDs[wfv.Gid] = true
-		runIDs[runv.Gid] = true
-	}
-
-	for wfid, _ := range wfIDs {
-		d.WorkflowIDs = append(d.WorkflowIDs, wfid)
-	}
-
-	for rid, _ := range runIDs {
-		d.RunIDs = append(d.RunIDs, rid)
-		d.Runs[rid] = getRun(cli, graphID, rid)
-	}
-
-	// TODO think of a more meaningful sort field.
-	//      is sorting by ID the right order in all cases?
-	sort.Strings(d.WorkflowIDs)
-	sort.Strings(d.RunIDs)
 
 	return d
 }
 
-func getRun(cli graph.Client, graphID, runID string) *runStat {
-	d := &runStat{
-		Name:      runID,
-		Steps:     map[string]*graph.Step{},
-		Tasks:     map[string]*tes.Task{},
-		StepTasks: map[string][]string{},
+// Data for a view showing runs (rows) by steps (columns) in a single workflow.
+type runsByStep struct {
+	Runs []*runStatus
+	// The table may be sparse, so this ensures there's a column for every step.
+	Steps []*graph.Step
+}
+
+func getRunsByStep(cli *graph.Client, wfID string) *runsByStep {
+	d := &runsByStep{
+		Runs:  []*runStatus{},
+		Steps: []*graph.Step{},
 	}
 
-	// Get all steps
-	q := aql.NewQuery().
-		V(runID).
+	// Get all steps in the workflow.
+	q := aql.V(wfID).In("ktl.StepInWorkflow")
+	res, err := cli.Execute(q)
+	if err != nil {
+		panic(err)
+	}
+
+	for row := range res {
+		v := row.Value.GetVertex()
+		d.Steps = append(d.Steps, &graph.Step{v.Gid})
+	}
+
+	// Get all the runs for the workflow.
+	q = aql.V(wfID).In("ktl.RunForWorkflow")
+	res, err = cli.Execute(q)
+	if err != nil {
+		panic(err)
+	}
+
+	for row := range res {
+		v := row.Value.GetVertex()
+		run := getRunStatus(cli, v.Gid)
+		d.Runs = append(d.Runs, run)
+	}
+
+	// TODO
+	//sort.Sort(d.Steps)
+	//sort.Sort(d.Runs)
+
+	return d
+}
+
+type runStatus struct {
+	ID       string
+	Total    int
+	Idle     int
+	Queued   int
+	Running  int
+	Error    int
+	Complete int
+	State    string
+	Steps    []*stepStatus
+}
+
+func getRunStatus(cli *graph.Client, runID string) *runStatus {
+	d := &runStatus{
+		ID:    runID,
+		Steps: []*stepStatus{},
+	}
+
+	// Get all steps.
+	stepsQ := aql.V(runID).
 		Out("ktl.RunForWorkflow").
 		In("ktl.StepInWorkflow")
 
-	res, err := cli.Execute(graphID, q)
+	res, err := cli.Execute(stepsQ)
 	if err != nil {
-		log.Error("ERR", err)
-	}
-	for row := range res {
-		v := row.Value.GetVertex()
-		s := &graph.Step{Task: &tes.Task{}}
-		err := graph.Unmarshal(v.Data, s)
-		if err != nil {
-			log.Error("Err", err)
-			continue
-		}
-		d.Steps[v.Gid] = s
+		panic(err)
 	}
 
-	// Get steps with a task
-	q = aql.NewQuery().
-		V(runID).
-		Out("ktl.RunForWorkflow").
-		In("ktl.StepInWorkflow").As("step").
+	for row := range res {
+		v := row.Value.GetVertex()
+		s := getStepStatus(cli, runID, v.Gid)
+		d.Steps = append(d.Steps, s)
+
+		d.Total++
+		switch s.State {
+		case tes.Complete:
+			d.Complete++
+		case tes.Queued:
+			d.Queued++
+		case tes.Initializing, tes.Running:
+			d.Running++
+		case tes.ExecutorError, tes.SystemError:
+			d.Error++
+		}
+	}
+
+	d.Idle = d.Total - (d.Complete + d.Queued + d.Running + d.Error)
+
+	switch {
+	case d.Error > 0:
+		d.State = "error"
+	case d.Running > 0:
+		d.State = "running"
+	case d.Queued > 0:
+		d.State = "queued"
+	case d.Complete == d.Total:
+		d.State = "complete"
+	default:
+		d.State = "idle"
+	}
+
+	return d
+}
+
+type stepStatus struct {
+	ID     string
+	State  tes.State
+	Latest *tes.Task
+	Tasks  []*tes.Task
+}
+
+func getStepStatus(cli *graph.Client, runID, stepID string) *stepStatus {
+	d := &stepStatus{
+		ID:    stepID,
+		Tasks: []*tes.Task{},
+	}
+
+	q := aql.V(stepID).
 		In("ktl.TaskForStep").As("task").
 		Out("ktl.TaskForRun").
 		HasID(runID).
-		Select("step", "task")
+		Select("task")
 
-	res, err = cli.Execute(graphID, q)
+	res, err := cli.Execute(q)
 	if err != nil {
-		log.Error("ERR", err)
+		panic(err)
 	}
+
 	for row := range res {
-		step := row.Row[0].GetVertex()
 		task := &tes.Task{}
-		err := graph.Unmarshal(row.Row[1].GetVertex().Data, task)
+
+		err := graph.Unmarshal(row.Value.GetVertex().Data, task)
 		if err != nil {
 			panic(err)
 		}
-		d.StepTasks[step.Gid] = append(d.StepTasks[step.Gid], task.Id)
-		d.Tasks[task.Id] = task
-	}
 
-	for sid, _ := range d.Steps {
-		tids := d.StepTasks[sid]
+		d.Tasks = append(d.Tasks, task)
 
-		if len(tids) == 0 {
-			continue
-		}
-
-		tasks := []*tes.Task{}
-		for _, tid := range tids {
-			tasks = append(tasks, d.Tasks[tid])
-		}
-		sort.Sort(ByCreationTime(tasks))
-		latest := tasks[len(tasks)-1]
-
-		if latest.State == tes.Complete {
-			d.Complete++
+		// Find the most recent task
+		if task.GetCreationTime() > d.Latest.GetCreationTime() {
+			d.Latest = task
 		}
 	}
 
-	d.Total = len(d.Steps)
-	log.Info("status", "run", runID, "total", d.Total, "complete", d.Complete)
+	// Use the state of the most recent task as the state of the step.
+	d.State = d.Latest.GetState()
+	return d
+}
+
+// Data for a view showing workflows (rows) by a run variable (columns) e.g. "tumor"
+// Each cell is a run, showing the summarized status of that run.
+type workflowRuns struct {
+	Workflows []*workflowStatus
+	Columns   []string
+}
+
+type workflowStatus struct {
+	ID           string
+	RunsByColumn map[string]*runStatus
+}
+
+func getWorkflowRuns(cli *graph.Client) *workflowRuns {
+	// TODO in the future, columnKey will come from the UI
+	columnKey := "Sample"
+
+	d := &workflowRuns{
+		Workflows: []*workflowStatus{},
+		Columns:   []string{},
+	}
+
+	// Keep a unique set of column names.
+	columns := map[string]bool{}
+
+	// Get all workflows
+	q := aql.V().HasLabel("ktl.Workflow")
+
+	res, err := cli.Execute(q)
+	if err != nil {
+		panic(err)
+	}
+
+	for row := range res {
+		wfv := row.Value.GetVertex()
+		wf := &workflowStatus{
+			ID:           wfv.Gid,
+			RunsByColumn: map[string]*runStatus{},
+		}
+		d.Workflows = append(d.Workflows, wf)
+
+		// Get all runs for this workflow
+		q := aql.V(wf.ID).In("ktl.RunForWorkflow")
+
+		res, err = cli.Execute(q)
+		if err != nil {
+			panic(err)
+		}
+
+		for row := range res {
+			run := row.Value.GetVertex()
+			data := map[string]string{}
+			graph.Unmarshal(run.Data, &data)
+			col, ok := data[columnKey]
+			if !ok {
+				continue
+			}
+			columns[col] = true
+			wf.RunsByColumn[col] = getRunStatus(cli, run.Gid)
+		}
+	}
+
+	for col, _ := range columns {
+		d.Columns = append(d.Columns, col)
+	}
+
+	// TODO
+	//sort.Sort(d.Workflows)
+	sort.Strings(d.Columns)
+
 	return d
 }

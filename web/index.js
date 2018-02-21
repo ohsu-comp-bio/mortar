@@ -38,11 +38,30 @@ class Home extends Component {
     }
   }
 
-  componentDidMount() {
-    fetch("/data.json")
+  fetchData() {
+    console.log("fetch")
+    fetch("/workflowRuns.json")
       .then(resp => resp.json())
       .then(data => this.setState({"data": data}))
   }
+
+  componentDidMount() {
+    this.fetchData()
+    var evts = new EventSource('/sub/workflowRuns.json')
+
+    evts.onmessage = (e) => {
+      var data = JSON.parse(e.data)
+      this.setState({"data": data})
+    }
+    evts.onerror = function() {
+      //console.log('event source error', arguments)
+    }
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.fetchInterval)
+  }
+
 
   render() {
     if (!this.state.data) {
@@ -51,38 +70,35 @@ class Home extends Component {
 
     var data = this.state.data
     var rows = []
-    var header = [<th key="empty"></th>]
 
-    for (var i = 0; i < data.RunIDs.length; i++) {
-      var rid = data.RunIDs[i]
-      var run = data.Runs[rid]
-      header.push(<th key={"run-th-" + rid}>{run.Name}</th>)
-    }
+    for (var i = 0; i < data.Workflows.length; i++) {
+      var wf = data.Workflows[i]
 
-    for (var i = 0; i < data.WorkflowIDs.length; i++) {
-      var wfid = data.WorkflowIDs[i]
-      var wf = data.Workflows[wfid]
-      var cells = []
-      cells.push(<td key={"wf-name-" + wfid}><Link to={"/runs/" + wfid}>{wf.Name}</Link></td>)
+      var cells = data.Columns.map(col => {
+        return Cell(wf.RunsByColumn[col])
+      })
 
-      for (var j = 0; j < data.RunIDs.length; j++) {
-        var rid = data.RunIDs[j]
-        var run = data.Runs[rid]
-        cells.push(Cell(rid, run))
-      }
-      rows.push(<tr key={"wf-" + wfid}>{cells}</tr>)
+      rows.push(<tr key={"wf-" + wf.ID}>
+        <td><Link to={"/workflow/" + wf.ID}>{wf.ID}</Link></td>
+        { cells }
+      </tr>)
     }
 
     return (<div>
       <h3><Link to="/">Mortar</Link></h3>
       <table>
-        <thead><tr>{header}</tr></thead>
         <tbody>{rows}</tbody>
       </table>
     </div>)
   }
 }
 
+const Row = (wf, run) => (<tr>
+</tr>)
+
+const Time = {
+  Second: 1000,
+}
 
 class Run extends Component {
   constructor(props) {
@@ -92,10 +108,19 @@ class Run extends Component {
     }
   }
 
-  componentDidMount() {
+  fetchData() {
     fetch("/data.json")
       .then(resp => resp.json())
       .then(data => this.setState({"data": data}))
+  }
+
+  componentDidMount() {
+    this.fetchData()
+    this.fetchInterval = setInterval(this.fetchData, 5 * Time.Second)
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.fetchInterval)
   }
 
   render() {
@@ -207,14 +232,14 @@ class RunsForWorkflow extends Component {
     </div>)
   }
 }
-const Cell = (rid, run) => {
+const Cell = (run) => {
   var cn = ""
 
   if (run.Total == run.Complete) {
     cn = "complete"
   }
-  return (<td key={"run-" + rid} className={cn}>
-    <Link to={"/run/" + rid}>{run.Complete} / {run.Total}</Link>
+  return (<td key={"run-" + run.ID} className={cn}>
+    <Link to={"/run/" + run.ID}>{run.State} ({run.Complete} / {run.Total})</Link>
   </td>)
 }
 

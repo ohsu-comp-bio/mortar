@@ -12,23 +12,23 @@ import (
 
 func init() {
 	conf := DefaultConfig()
-	runCmd := cobra.Command{
-		Use:  "run",
+	icmd := &cobra.Command{
+		Use:  "ingest",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(conf)
+			return ingest(conf)
 		},
 	}
-	cmd.AddCommand(&runCmd)
+	cmd.AddCommand(icmd)
 
-	f := runCmd.Flags()
+	f := icmd.Flags()
 	f.StringVar(&conf.Arachne.Server, "Arachne.Server", conf.Arachne.Server, "")
 	f.StringVar(&conf.Arachne.Graph, "Arachne.Graph", conf.Arachne.Graph, "")
 	f.StringSliceVar(&conf.Kafka.Servers, "Kafka.Servers", conf.Kafka.Servers, "")
 	f.StringVar(&conf.Kafka.Topic, "Kafka.Topic", conf.Kafka.Topic, "")
 }
 
-func run(conf Config) error {
+func ingest(conf Config) error {
 
 	log.Info("Connecting to arachne", "server", conf.Arachne.Server)
 	acli, err := aql.Connect(conf.Arachne.Server, true)
@@ -42,7 +42,8 @@ func run(conf Config) error {
 	}
 
 	cli := graph.Client{Client: &acli, Graph: conf.Arachne.Graph}
-	counter := NewCounter("imported events", time.Second)
+	counter := NewCounter("ingested events", time.Second)
+	readCounter := NewCounter("read events", time.Second)
 
 	r, err := events.NewKafkaReader(conf.Kafka)
 	if err != nil {
@@ -55,6 +56,7 @@ func run(conf Config) error {
 			log.Error("can't read event", err)
 			continue
 		}
+		readCounter.Inc()
 
 		task := &graph.Task{Task: &tes.Task{Id: ev.Id}}
 
@@ -70,41 +72,25 @@ func run(conf Config) error {
 		switch ev.Type {
 		case events.Type_TASK_CREATED:
 
-			if sID, ok := task.Tags["ktl.StepID"]; ok {
-				step := &graph.Step{ID: sID}
-				b.AddEdge(graph.TaskForStep(task, step))
+			// TODO step IDs need to be globally unique
+			stepID := task.Tags["mortar.StepID"]
+			runID := task.Tags["mortar.RunID"]
+
+			if stepID == "" {
+				log.Error("missing stepID")
+				continue
+			}
+			if runID == "" {
+				log.Error("missing runID")
+				continue
 			}
 
-			for _, input := range task.Inputs {
-				// Some inputs have an empty URL, e.g. if they define the "content" field
-				if input.Url == "" {
-					continue
-				}
+			// TODO should these create vertices?
 
-				iv := &graph.File{input.Url, input.Type}
-				b.AddVertex(iv)
-				b.AddEdge(graph.TaskRequestsInput(task, iv))
-			}
-
-			for _, output := range task.Outputs {
-				ov := &graph.File{output.Url, output.Type}
-				b.AddVertex(ov)
-				b.AddEdge(graph.TaskRequestsOutput(task, ov))
-			}
-
-			for _, exec := range task.Executors {
-				iv := &graph.Image{exec.Image}
-				b.AddVertex(iv)
-				b.AddEdge(graph.TaskRequestsImage(task, iv))
-			}
-
-		case events.Type_TASK_OUTPUTS:
-			outputs := ev.GetOutputs().Value
-			for _, output := range outputs {
-				ov := &graph.File{URL: output.Url}
-				b.AddVertex(ov)
-				b.AddEdge(graph.TaskUploadedOutput(task, ov))
-			}
+			step := &graph.Step{ID: stepID}
+			run := &graph.Run{ID: runID}
+			b.AddEdge(graph.TaskForStep(task, step))
+			b.AddEdge(graph.TaskForRun(task, run))
 		}
 
 		err = cli.AddBatch(b)

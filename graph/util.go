@@ -9,9 +9,11 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	structpb "github.com/golang/protobuf/ptypes/struct"
+	"github.com/ohsu-comp-bio/funnel/logger"
 )
 
 var mar = jsonpb.Marshaler{}
+var log = logger.NewLogger("mortar/graph", logger.DefaultConfig())
 
 // Vertex describes a type of arachne AQL vertex.
 type Vertex interface {
@@ -31,16 +33,9 @@ type Client struct {
 	Graph string
 }
 
-type Batch struct {
-	Edges []Edge
-	Verts []Vertex
-}
-
-func (b *Batch) AddVertex(v Vertex) {
-	b.Verts = append(b.Verts, v)
-}
-func (b *Batch) AddEdge(e Edge) {
-	b.Edges = append(b.Edges, e)
+func (c *Client) Execute(q *aql.Query) (<-chan *aql.ResultRow, error) {
+	//log.Info("Query", q)
+	return c.Client.Execute(c.Graph, q)
 }
 
 func (c *Client) AddBatch(b *Batch) error {
@@ -83,6 +78,18 @@ func (c *Client) AddEdge(e Edge) error {
 // GetVertex gets a vertex by id.
 func (c *Client) GetVertex(id string) (*aql.Vertex, error) {
 	return c.Client.GetVertex(c.Graph, id)
+}
+
+type Batch struct {
+	Edges []Edge
+	Verts []Vertex
+}
+
+func (b *Batch) AddVertex(v Vertex) {
+	b.Verts = append(b.Verts, v)
+}
+func (b *Batch) AddEdge(e Edge) {
+	b.Edges = append(b.Edges, e)
 }
 
 // Marshal marshals a proto.Message into a structpb.Struct.
