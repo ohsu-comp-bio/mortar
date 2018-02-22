@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -57,8 +61,8 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-
 	})
+
 	r.HandleFunc("/workflowStatuses.json", func(resp http.ResponseWriter, req *http.Request) {
 		d := getWorkflowStatuses(cli)
 		enc := json.NewEncoder(resp)
@@ -68,6 +72,69 @@ func main() {
 			panic(err)
 		}
 
+	})
+
+	r.HandleFunc("/submit", func(resp http.ResponseWriter, req *http.Request) {
+		f, h, err := req.FormFile("workflow")
+		if err != nil {
+			log.Error("submit", err)
+		}
+		if f == nil {
+			return
+		}
+
+		fi, hi, err := req.FormFile("inputs")
+		if err != nil {
+			log.Error("submit", err)
+		}
+		if fi == nil {
+			return
+		}
+
+		b, _ := ioutil.ReadAll(f)
+		bi, _ := ioutil.ReadAll(fi)
+
+		type submit struct {
+			App    string                 `json:"app"`
+			Inputs map[string]interface{} `json:"inputs"`
+		}
+		s := submit{}
+
+		enc := base64.StdEncoding.EncodeToString(b)
+		hash := fmt.Sprintf("%x", md5.Sum(b))
+		prefix := "data:text/plain;base64,"
+
+		if err := json.Unmarshal(bi, &s.Inputs); err != nil {
+			log.Error("submit unmarshal", err)
+			return
+		}
+		s.App = prefix + enc
+
+		bout, _ := json.Marshal(s)
+
+		buf := bytes.NewBuffer(bout)
+		presp, err := http.Post("http://localhost:8081/v0/engine/jobs/", "application/json", buf)
+		if err != nil {
+			log.Error("post err", err)
+		}
+		pb, _ := ioutil.ReadAll(presp.Body)
+		log.Info("post resp", string(pb))
+
+		type response struct {
+			ID     string
+			RootID string
+		}
+		bunnyResp := response{}
+		json.Unmarshal(pb, &bunnyResp)
+
+		wf := &graph.Workflow{ID: hash}
+		run := &graph.Run{ID: bunnyResp.ID}
+
+		cli.AddVertex(wf)
+		cli.AddVertex(run)
+		cli.AddEdge(graph.RunForWorkflow(run, wf))
+
+		fmt.Println(string(bout), h.Filename, hash, hi.Filename, bunnyResp)
 	})
 
 	r.HandleFunc("/workflow/{wfid}", func(resp http.ResponseWriter, req *http.Request) {

@@ -235,10 +235,58 @@ const Cell = (run) => {
   </td>)
 }
 
+class Submit extends Component {
+  constructor(props) {
+    super()
+    this.state = { workflow: "", inputs: "" }
+  }
+
+  onChangeWorkflow(ev) {
+    this.setState({ workflow: ev.target.files[0] })
+  }
+
+  onChangeInputs(ev) {
+    this.setState({ inputs: ev.target.files[0] })
+  }
+
+  onSubmit(ev) {
+    ev.preventDefault()
+
+    if (!this.state.workflow || !this.state.inputs) {
+      return
+    }
+
+    const data = new FormData()
+    data.append("workflow", this.state.workflow)
+    data.append("inputs", this.state.inputs)
+
+    fetch("/submit", {
+      method: "POST",
+      body: data,
+    }).then(resp => {
+      console.log(resp)
+    })
+  }
+
+  render() {
+    return (<div>
+      <form onSubmit={ev => this.onSubmit(ev)}>
+        <p>Upload a workflow file</p>
+        <input type="file" onChange={ev => this.onChangeWorkflow(ev)} />
+
+        <p>Upload an inputs file</p>
+        <input type="file" onChange={ev => this.onChangeInputs(ev)} />
+        <button type="submit">Submit</button>
+      </form>
+    </div>)
+  }
+}
+
 ReactDOM.render(
   (<Router>
     <div>
       <Route exact path="/" component={Home} />
+      <Route exact path="/submitjob" component={Submit} />
       <Route path="/run/:rid" component={Run} />
       <Route path="/runs/:wfid" component={RunsForWorkflow} />
     </div>
