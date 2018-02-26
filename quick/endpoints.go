@@ -4,12 +4,14 @@ import (
 	"sort"
 
 	"github.com/bmeg/arachne/aql"
+	"github.com/bmeg/arachne/protoutil"
 	"github.com/ohsu-comp-bio/mortar/graph"
 	"github.com/ohsu-comp-bio/tes"
 )
 
 type workflowInfo struct {
 	ID    string
+  Workflow *graph.Workflow
 	Steps []*graph.Step
 }
 
@@ -18,6 +20,24 @@ func getWorkflowInfo(cli *graph.Client, wfID string) *workflowInfo {
 		ID:    wfID,
 		Steps: []*graph.Step{},
 	}
+
+  wfv, err := cli.GetVertex(wfID)
+  if err != nil {
+    log.Error("error", err)
+    return nil
+  }
+
+  data := protoutil.AsMap(wfv.Data)
+  doc, ok := data["Doc"].(map[string]interface{})
+  if !ok {
+    log.Error("error", err)
+    return nil
+  }
+
+  d.Workflow = &graph.Workflow{
+    ID: wfID,
+    Doc: doc,
+  }
 
 	// Get all steps in the workflow.
 	q := aql.V(wfID).In("ktl.StepInWorkflow")
@@ -28,7 +48,7 @@ func getWorkflowInfo(cli *graph.Client, wfID string) *workflowInfo {
 
 	for row := range res {
 		v := row.Value.GetVertex()
-		d.Steps = append(d.Steps, &graph.Step{v.Gid})
+		d.Steps = append(d.Steps, &graph.Step{ID: v.Gid})
 	}
 
 	return d
@@ -114,6 +134,7 @@ func getWorkflowStatuses(cli *graph.Client) map[string]*workflowStatus {
 	// Get all workflows
 	q := aql.V().
 		HasLabel("ktl.Workflow").As("wf").
+    // TODO yet again, limiting. bunny workflows don't have steps.
 		In("ktl.StepInWorkflow").As("step").
 		Select("wf", "step")
 

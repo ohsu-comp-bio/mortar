@@ -242,7 +242,7 @@ class Submit extends Component {
   }
 
   onChangeWorkflow(ev) {
-    this.setState({ workflow: ev.target.files[0] })
+    this.setState({ workflow: ev.target.value })
   }
 
   onChangeInputs(ev) {
@@ -253,6 +253,7 @@ class Submit extends Component {
     ev.preventDefault()
 
     if (!this.state.workflow || !this.state.inputs) {
+      console.log("missing input data")
       return
     }
 
@@ -272,7 +273,7 @@ class Submit extends Component {
     return (<div>
       <form onSubmit={ev => this.onSubmit(ev)}>
         <p>Upload a workflow file</p>
-        <input type="file" onChange={ev => this.onChangeWorkflow(ev)} />
+        <input type="text" onChange={ev => this.onChangeWorkflow(ev)} />
 
         <p>Upload an inputs file</p>
         <input type="file" onChange={ev => this.onChangeInputs(ev)} />

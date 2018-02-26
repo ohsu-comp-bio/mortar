@@ -54,7 +54,7 @@ func main() {
 		for j := 0; j < numSamples; j++ {
 			run := &graph.Run{
 				ID:     fmt.Sprintf("run-%.5d-%.5d", i, j),
-				Sample: fmt.Sprintf("sample-%.5d", j),
+				//Sample: fmt.Sprintf("sample-%.5d", j),
 			}
 			e := graph.RunForWorkflow(run, wf)
 			b.AddVertex(run)

@@ -11,11 +11,11 @@ import (
 
 type Run struct {
 	ID     string
-	Sample string
+  Inputs map[string]interface{}
 }
 
 func (r *Run) MarshalAQL() (*aql.Vertex, error) {
-	d, _ := Marshal(map[string]string{"Sample": r.Sample})
+	d, _ := Marshal(r)
 
 	return &aql.Vertex{
 		Gid:   r.ID,
@@ -34,12 +34,16 @@ func RunForWorkflow(run *Run, wf *Workflow) Edge {
 
 type Workflow struct {
 	ID string
+  Doc map[string]interface{}
 }
 
 func (w *Workflow) MarshalAQL() (*aql.Vertex, error) {
+	d, _ := Marshal(w)
+
 	return &aql.Vertex{
 		Gid:   w.ID,
 		Label: "ktl.Workflow",
+    Data: d,
 	}, nil
 }
 
@@ -50,6 +54,7 @@ func StepInWorkflow(step *Step, wf *Workflow) Edge {
 // Step describes a step in a ktl workflow.
 type Step struct {
 	ID string
+  Doc map[string]interface{}
 }
 
 // MarshalAQL marshals the vertex into an arachne AQL vertex.

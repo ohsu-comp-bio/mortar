@@ -11,12 +11,12 @@ import (
 func init() {
 	conf := DefaultConfig()
 	runCmd := cobra.Command{
-		Use: "add-run",
+		Use: "add-step",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 3 {
-				return fmt.Errorf("usage: add-run <workflow ID> <run ID> <sample>")
+			if len(args) != 2 {
+				return fmt.Errorf("usage: add-step <workflow ID> <step ID>")
 			}
-			return runAddRun(conf, args[0], args[1], args[2])
+			return runAddStep(conf, args[0], args[1])
 		},
 	}
 	cmd.AddCommand(&runCmd)
@@ -26,7 +26,7 @@ func init() {
 	f.StringVar(&conf.Arachne.Graph, "Arachne.Graph", conf.Arachne.Graph, "")
 }
 
-func runAddRun(conf Config, wfid, rid, sample string) error {
+func runAddStep(conf Config, wfid, sid string) error {
 
 	log.Info("Connecting to arachne", "server", conf.Arachne.Server)
 	acli, err := aql.Connect(conf.Arachne.Server, true)
@@ -37,11 +37,12 @@ func runAddRun(conf Config, wfid, rid, sample string) error {
 	cli := graph.Client{Client: &acli, Graph: conf.Arachne.Graph}
 	b := &graph.Batch{}
 
-	run := &graph.Run{ID: rid}
+	step := &graph.Step{ID: sid}
 	wf := &graph.Workflow{ID: wfid}
 
-	b.AddVertex(run)
-	b.AddEdge(graph.RunForWorkflow(run, wf))
+	b.AddVertex(step)
+	b.AddVertex(wf)
+	b.AddEdge(graph.StepInWorkflow(step, wf))
 
 	err = cli.AddBatch(b)
 	if err != nil {

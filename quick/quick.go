@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"crypto/md5"
-	"encoding/base64"
+  "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,10 +9,11 @@ import (
 	"time"
 
 	"github.com/bmeg/arachne/aql"
+	"github.com/bmeg/arachne/protoutil"
 	"github.com/gorilla/mux"
 	"github.com/ohsu-comp-bio/funnel/logger"
 	"github.com/ohsu-comp-bio/mortar/graph"
-	"github.com/ohsu-comp-bio/tes"
+	"github.com/ohsu-comp-bio/mortar/bunny"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -36,13 +35,7 @@ func main() {
 	}
 
 	cli := &graph.Client{Client: &acli, Graph: graphID}
-
-	/*
-		b := makeData()
-		if err := cli.AddBatch(b); err != nil {
-			fmt.Println("ERR", err)
-		}
-	*/
+  bunnyCli := bunny.Client{Server: "http://localhost:8081"}
 
 	r := mux.NewRouter()
 
@@ -59,7 +52,9 @@ func main() {
 		enc.SetIndent("", "  ")
 		err := enc.Encode(d)
 		if err != nil {
-			panic(err)
+      log.Error("error", err)
+      http.Error(resp, "failed to encode workflow runs", http.StatusInternalServerError)
+      return
 		}
 	})
 
@@ -69,80 +64,103 @@ func main() {
 		enc.SetIndent("", "  ")
 		err := enc.Encode(d)
 		if err != nil {
-			panic(err)
+      log.Error("error", err)
+      http.Error(resp, "failed to encode workflow status", http.StatusInternalServerError)
+      return
 		}
-
 	})
 
+  // TODO redesign REST url structure and use POST /run
+  //      also, consider that workflow engines might often call this "job"
 	r.HandleFunc("/submit", func(resp http.ResponseWriter, req *http.Request) {
-		f, h, err := req.FormFile("workflow")
-		if err != nil {
-			log.Error("submit", err)
-		}
-		if f == nil {
-			return
-		}
 
-		fi, hi, err := req.FormFile("inputs")
+    workflowID := req.FormValue("workflow")
+    if workflowID == "" {
+      http.Error(resp, "missing required workflow ID", http.StatusBadRequest)
+      return
+    }
+
+    wfv, err := cli.GetVertex(workflowID)
+    if err != nil {
+      log.Error("submit error", err)
+      http.Error(resp, "error getting workflow", http.StatusInternalServerError)
+      return
+    }
+
+    data := protoutil.AsMap(wfv.Data)
+    doc, ok := data["Doc"].(map[string]interface{})
+    if !ok {
+      log.Error("workflow load error", err)
+      http.Error(resp, "error loading workflow", http.StatusInternalServerError)
+      return
+    }
+    wf := &graph.Workflow{
+      ID: wfv.Gid,
+      Doc: doc,
+    }
+
+		fi, _, err := req.FormFile("inputs")
 		if err != nil {
-			log.Error("submit", err)
+      log.Error("submit error", err)
+      http.Error(resp, "error loading inputs file", http.StatusInternalServerError)
+			return
 		}
 		if fi == nil {
+      http.Error(resp, "missing required workflow inputs file", http.StatusBadRequest)
 			return
 		}
 
-		b, _ := ioutil.ReadAll(f)
-		bi, _ := ioutil.ReadAll(fi)
-
-		type submit struct {
-			App    string                 `json:"app"`
-			Inputs map[string]interface{} `json:"inputs"`
-		}
-		s := submit{}
-
-		enc := base64.StdEncoding.EncodeToString(b)
-		hash := fmt.Sprintf("%x", md5.Sum(b))
-		prefix := "data:text/plain;base64,"
-
-		if err := json.Unmarshal(bi, &s.Inputs); err != nil {
-			log.Error("submit unmarshal", err)
-			return
-		}
-		s.App = prefix + enc
-
-		bout, _ := json.Marshal(s)
-
-		buf := bytes.NewBuffer(bout)
-		presp, err := http.Post("http://localhost:8081/v0/engine/jobs/", "application/json", buf)
+		bi, err := ioutil.ReadAll(fi)
 		if err != nil {
-			log.Error("post err", err)
+      log.Error("submit error", err)
+      http.Error(resp, "failed to read inputs file", http.StatusInternalServerError)
+			return
 		}
-		pb, _ := ioutil.ReadAll(presp.Body)
-		log.Info("post resp", string(pb))
 
-		type response struct {
-			ID     string
-			RootID string
-		}
-		bunnyResp := response{}
-		json.Unmarshal(pb, &bunnyResp)
+    docb, err := json.Marshal(doc)
+    if err != nil {
+      log.Error("marshaing doc to json", err)
+      http.Error(resp, "failed to process workflow doc", http.StatusInternalServerError)
+      return
+    }
 
-		wf := &graph.Workflow{ID: hash}
-		run := &graph.Run{ID: bunnyResp.ID}
+    job := &bunny.Job{
+      App: encodeDoc(docb),
+      Inputs: map[string]interface{}{},
+    }
 
-		cli.AddVertex(wf)
+    err = json.Unmarshal(bi, &job.Inputs)
+    if err != nil {
+      log.Error("submit error", err)
+      http.Error(resp, "failed while unmarshaling inputs", http.StatusBadRequest)
+      return
+    }
+
+    log.Info("submitting", job)
+
+    bresp, err := bunnyCli.CreateJob(job)
+    if err != nil {
+      log.Error("submit error", err)
+      http.Error(resp, "failed calling CreateJob", http.StatusBadRequest)
+      return
+    }
+		run := &graph.Run{
+      ID: bresp.ID,
+      Inputs: bresp.Inputs,
+    }
+
 		cli.AddVertex(run)
 		cli.AddEdge(graph.RunForWorkflow(run, wf))
-
-		fmt.Println(string(bout), h.Filename, hash, hi.Filename, bunnyResp)
 	})
 
 	r.HandleFunc("/workflow/{wfid}", func(resp http.ResponseWriter, req *http.Request) {
 		vars := mux.Vars(req)
 		wfid, ok := vars["wfid"]
 		if !ok {
+      http.Error(resp, "missing workflow ID", http.StatusBadRequest)
 			return
 		}
+
 		d := getWorkflowInfo(cli, wfid)
 		enc := json.NewEncoder(resp)
 		enc.SetIndent("", "  ")
@@ -185,18 +203,6 @@ func main() {
 	//srv.ListenAndServeTLS("cert.pem", "key.pem")
 }
 
-type ByCreationTime []*tes.Task
-
-func (b ByCreationTime) Len() int {
-	return len(b)
-}
-func (b ByCreationTime) Less(i, j int) bool {
-	return b[i].CreationTime < b[j].CreationTime
-}
-func (b ByCreationTime) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
 func fmtRow(row []*aql.QueryResult) []string {
 	o := []string{}
 	for _, item := range row {
@@ -209,4 +215,8 @@ func fmtRow(row []*aql.QueryResult) []string {
 		}
 	}
 	return o
+}
+
+func encodeDoc(b []byte) string {
+  return "data:text/plain;base64," + base64.StdEncoding.EncodeToString(b)
 }
