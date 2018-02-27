@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"time"
+  "strings"
 
 	"github.com/bmeg/arachne/aql"
 	"github.com/ohsu-comp-bio/mortar/events"
 	"github.com/ohsu-comp-bio/mortar/graph"
+	"github.com/ohsu-comp-bio/mortar/quick"
 	"github.com/ohsu-comp-bio/tes"
 	"github.com/spf13/cobra"
 )
@@ -13,10 +15,10 @@ import (
 func init() {
 	conf := DefaultConfig()
 	icmd := &cobra.Command{
-		Use:  "ingest",
+		Use:  "run",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return ingest(conf)
+			return run(conf)
 		},
 	}
 	cmd.AddCommand(icmd)
@@ -26,6 +28,12 @@ func init() {
 	f.StringVar(&conf.Arachne.Graph, "Arachne.Graph", conf.Arachne.Graph, "")
 	f.StringSliceVar(&conf.Kafka.Servers, "Kafka.Servers", conf.Kafka.Servers, "")
 	f.StringVar(&conf.Kafka.Topic, "Kafka.Topic", conf.Kafka.Topic, "")
+}
+
+func run(conf Config) error {
+  go ingest(conf)
+  quick.Serve()
+  return nil
 }
 
 func ingest(conf Config) error {
@@ -75,6 +83,19 @@ func ingest(conf Config) error {
 			// TODO step IDs need to be globally unique
 			stepID := task.Tags["ktl.StepID"]
 			runID := task.Tags["ktl.RunID"]
+
+      // TODO hacky capture of bunny tags for now until we standardize
+      tool_name := strings.TrimPrefix(task.Tags["tool_name"], "root.")
+      //job_id := task.Tags["job_id"]
+      workflow_id := task.Tags["workflow_id"]
+
+      if stepID == "" && tool_name != "" {
+        stepID = tool_name
+      }
+
+      if runID == "" && workflow_id != "" {
+        runID = workflow_id
+      }
 
 			if stepID == "" {
 				log.Error("missing stepID")

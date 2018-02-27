@@ -1,4 +1,4 @@
-package main
+package quick
 
 import (
 	"github.com/ohsu-comp-bio/mortar/graph"

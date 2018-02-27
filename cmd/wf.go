@@ -55,12 +55,13 @@ func runAddWf(conf Config, wfid, path string) error {
   bat.AddVertex(wf)
 
   steps := doc["steps"].([]interface{})
-  for _, stepi := range steps {
+  for i, stepi := range steps {
     step := stepi.(map[string]interface{})
     id := step["id"].(string)
     s := &graph.Step{
       ID: id,
       Doc: step,
+      Order: i,
     }
     log.Info("step", "id", id, "step", step, "stepv", s)
     bat.AddVertex(s)

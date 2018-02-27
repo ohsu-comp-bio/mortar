@@ -55,6 +55,7 @@ func StepInWorkflow(step *Step, wf *Workflow) Edge {
 type Step struct {
 	ID string
   Doc map[string]interface{}
+  Order int
 }
 
 // MarshalAQL marshals the vertex into an arachne AQL vertex.
@@ -69,6 +70,15 @@ func (s *Step) MarshalAQL() (*aql.Vertex, error) {
 		Data:  d,
 	}, nil
 }
+
+func (s *Step) UnmarshalAQL(v *aql.Vertex) error {
+  return Unmarshal(v.Data, s)
+}
+
+type OrderedSteps []*Step
+func (o OrderedSteps) Len() int { return len(o) }
+func (o OrderedSteps) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o OrderedSteps) Less(i, j int) bool { return o[i].Order < o[j].Order }
 
 func TaskForStep(task *Task, step *Step) Edge {
 	return NewEdge("ktl.TaskForStep", task, step)

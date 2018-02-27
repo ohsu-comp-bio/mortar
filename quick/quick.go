@@ -1,4 +1,4 @@
-package main
+package quick
 
 import (
   "encoding/base64"
@@ -19,8 +19,8 @@ import (
 
 var log = logger.NewLogger("quick", logger.DefaultConfig())
 
-func main() {
 
+func Serve() {
 	server := "localhost:8202"
 	graphID := "mortar"
 

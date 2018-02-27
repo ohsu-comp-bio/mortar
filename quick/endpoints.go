@@ -1,4 +1,4 @@
-package main
+package quick
 
 import (
 	"sort"
@@ -134,7 +134,6 @@ func getWorkflowStatuses(cli *graph.Client) map[string]*workflowStatus {
 	// Get all workflows
 	q := aql.V().
 		HasLabel("ktl.Workflow").As("wf").
-    // TODO yet again, limiting. bunny workflows don't have steps.
 		In("ktl.StepInWorkflow").As("step").
 		Select("wf", "step")
 
@@ -146,6 +145,8 @@ func getWorkflowStatuses(cli *graph.Client) map[string]*workflowStatus {
 	for row := range res {
 		wfv := row.Row[0].GetVertex()
 		stepv := row.Row[1].GetVertex()
+    step := &graph.Step{}
+    step.UnmarshalAQL(stepv)
 
 		wfst, ok := d[wfv.Gid]
 		if !ok {
@@ -156,8 +157,12 @@ func getWorkflowStatuses(cli *graph.Client) map[string]*workflowStatus {
 			d[wfst.ID] = wfst
 		}
 
-		wfst.Steps = append(wfst.Steps, &graph.Step{ID: stepv.Gid})
+		wfst.Steps = append(wfst.Steps, step)
 	}
+
+  for _, wfst := range d {
+    sort.Sort(graph.OrderedSteps(wfst.Steps))
+  }
 
 	// Get all runs
 	q = aql.V().

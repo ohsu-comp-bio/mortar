@@ -1,6 +1,27 @@
 
-.complete {
+.step-state-COMPLETE {
   background-color: #96ff62;
+}
+.step-state-EXECUTOR_ERROR {
+  background-color: red;
+}
+
+.run-state-error td.run-id {
+  background-color: red;
+}
+
+td {
+}
+
+th {
+  padding-top: 200px;
+  padding-bottom: 20px;
+  white-space: nowrap;
+}
+
+th.rotate div {
+  transform: rotate(-45deg);
+  width: 20px;
 }
 
 td {

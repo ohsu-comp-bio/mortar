@@ -3,6 +3,7 @@ import ReactDOM from "react-dom"
 import { BrowserRouter as Router, Route, Link } from 'react-router-dom'
 
 var stateMap = {
+  "UNKNOWN": "Idle",
   "COMPLETE": "Complete",
   "RUNNING": "Running",
   "INITIALIZING": "Initializing",
@@ -20,7 +21,6 @@ function stepState(run, sid) {
   if (tasks && tasks.length > 0) {
     var latestID = tasks[0]
     var task = run.Tasks[latestID]
-    state = stateMap[task.state]
 
     if (!state) {
       state = "Unknown"
@@ -169,12 +169,14 @@ class RunsForWorkflow extends Component {
 
   componentDidMount() {
 
+  /*
     var wfid = this.props.match.params.wfid
     if (!wfid) {
       return
     }
+    */
 
-    fetch("/data/wf/"+wfid)
+    fetch("/workflowStatuses.json")
       .then(resp => resp.json())
       .then(data => this.setState({"data": data}))
   }
@@ -184,41 +186,49 @@ class RunsForWorkflow extends Component {
       return <div>Loading</div>
     }
 
-    var data = this.state.data
-    var header = [<th key="empty"></th>]
+    var wfid = this.props.match.params.wfid
+    var data = this.state.data[wfid]
     var rows = []
+    var headers = []
 
-    for (var i = 0; i < data.StepIDs.length; i++) {
-      var sid = data.StepIDs[i]
-      var steps = data.Steps[sid]
-      header.push(<th key={"step-th-" + sid}>{sid}</th>)
+    var StepIDs = Object.keys(data.Steps)
+    for (var j = 0; j < StepIDs.length; j++) {
+      var step = data.Steps[j]
+      headers.push(<th key={"step-th-"+step.ID} className="rotate"><div>{step.ID}</div></th>)
+      console.log(step)
     }
 
-    for (var i = 0; i < data.RunIDs.length; i++) {
-      var rid = data.RunIDs[i]
+    var RunIDs = Object.keys(data.Runs)
+    for (var i = 0; i < RunIDs.length; i++) {
+      var rid = RunIDs[i]
       var run = data.Runs[rid]
       var row = []
 
-      for (var j = 0; j < data.StepIDs.length; j++) {
-        var sid = data.StepIDs[j]
-        var steps = data.Steps[sid]
-        var state = stepState(run, sid)
-        row.push(<td key={"run-" + rid + "-step-" + sid}>{state}</td>)
+      var StepIDs = Object.keys(data.Steps)
+      for (var j = 0; j < StepIDs.length; j++) {
+        var sid = data.Steps[j].ID
+        var step = run.Steps[sid]
+        var state = stateMap[step.State]
+        row.push(<td key={"run-" + rid + "-step-" + sid} className={"step-state-" + step.State}>{state}</td>)
       }
 
-      rows.push(<tr key={"run-" + rid}>
-        <td>{rid}</td>
+      rows.push(<tr key={"run-" + rid} className={"run-state-" + run.State}>
+        <td className="run-id">{rid}</td>
+        <td>{run.Complete} / {run.Total}</td>
         {row}
       </tr>)
     }
-    console.log(run)
 
     return (<div>
       <h3><Link to="/">Mortar</Link></h3>
       <table>
-        <thead><tr>
-          {header}
-        </tr></thead>
+        <thead>
+          <tr>
+            <th>Run ID</th>
+            <th>Complete / Total</th>
+            {headers}
+          </tr>
+        </thead>
         <tbody>{rows}</tbody>
       </table>
     </div>)
