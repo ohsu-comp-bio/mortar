@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Route, Link } from 'react-router-dom'
 
 var stateMap = {
   "UNKNOWN": "Idle",
-  "COMPLETE": "Complete",
+  "COMPLETE": "Done",
   "RUNNING": "Running",
   "INITIALIZING": "Initializing",
   "SYSTEM_ERROR": "Error",
@@ -214,7 +214,7 @@ class RunsForWorkflow extends Component {
 
       rows.push(<tr key={"run-" + rid} className={"run-state-" + run.State}>
         <td className="run-id">{rid}</td>
-        <td>{run.Complete} / {run.Total}</td>
+        <td className="run-status">{run.Complete} / {run.Total}</td>
         {row}
       </tr>)
     }
@@ -225,7 +225,7 @@ class RunsForWorkflow extends Component {
         <thead>
           <tr>
             <th>Run ID</th>
-            <th>Complete / Total</th>
+            <th>Status</th>
             {headers}
           </tr>
         </thead>

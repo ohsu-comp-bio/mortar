@@ -6,11 +6,16 @@
   background-color: red;
 }
 
-.run-state-error td.run-id {
+td.run-status {
+  min-width: 40px;
+}
+.run-state-error td.run-status {
   background-color: red;
 }
 
-td {
+td.run-id {
+  text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 th {
@@ -20,11 +25,18 @@ th {
 }
 
 th.rotate div {
-  transform: rotate(-45deg);
+  transform: translate(15px, 0px) rotate(-45deg);
   width: 20px;
 }
 
+table {
+  border-collapse: collapse;
+}
 td {
+  height: 40px;
   text-align: center;
   padding: 5px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+
 }
