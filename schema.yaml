@@ -1,0 +1,212 @@
+---
+vertices:
+- gid: Aliquot
+  label: Object
+  data:
+    fields:
+      AnalyteType: String
+      Concentration: Float
+      ExternalID: String
+      ID: String
+      SampleID: String
+      ShipmentDestination: String
+      ShipmentOrigin: String
+      UUID: String
+      Volume: Float
+- gid: Demographic
+  label: Object
+  data:
+    fields:
+      Ethnicity: String
+      ExternalID: String
+      Gender: String
+      ID: String
+      ParticipantID: String
+      Race: String
+      UUID: String
+- gid: Diagnosis
+  label: Object
+  data:
+    fields:
+      Diagnosis: String
+      DiagnosisCategory: String
+      ExternalID: String
+      ID: String
+      ParticipantID: String
+      TumorLocation: String
+      UUID: String
+- gid: FamilyRelationship
+  label: Object
+  data:
+    fields:
+      ID: String
+      ParticipantID: String
+      ParticipantToRelativeRelation: String
+      RelativeID: String
+      RelativeToParticipantRelation: String
+      UUID: String
+- gid: GenomicFile
+  label: Object
+  data:
+    fields:
+      ControlledAccess: Boolean
+      DataType: String
+      FileFormat: String
+      FileName: String
+      FileUrl: String
+      ID: String
+      MD5sum: String
+      SequencingExperimentID: String
+      UUID: String
+- gid: Investigator
+  label: Object
+  data:
+    fields:
+      ID: String
+      Institution: String
+      Name: String
+      UUID: String
+- gid: Outcome
+  label: Object
+  data:
+    fields:
+      DiseaseRelated: Boolean
+      ID: String
+      ParticipantID: String
+      UUID: String
+      VitalStatus: String
+- gid: Participant
+  label: Object
+  data:
+    fields:
+      ConsentType: String
+      ExternalID: String
+      FamilyID: String
+      ID: String
+      IsProband: Boolean
+      StudyID: String
+      UUID: String
+- gid: Phenotype
+  label: Object
+  data:
+    fields:
+      HpoID: String
+      ID: String
+      Observed: String
+      ParticipantID: String
+      Phenotype: String
+      UUID: String
+- gid: Sample
+  label: Object
+  data:
+    fields:
+      AnatomicalSite: String
+      Composition: String
+      ExternalID: String
+      ID: String
+      ParticipantID: String
+      TissueType: String
+      TumorDescriptor: String
+      UUID: String
+- gid: SequencingExperiment
+  label: Object
+  data:
+    fields:
+      AliquotID: String
+      Center: String
+      ExperimentStrategy: String
+      ExternalID: String
+      ID: String
+      InstrumentModel: String
+      IsPairedEnd: Boolean
+      LibraryName: String
+      LibraryStrand: String
+      MaxInsertSize: Float
+      MeanDepth: Float
+      MeanInsertSize: Float
+      MeanReadLength: Float
+      Platform: String
+      TotalReads: Float
+      UUID: String
+- gid: Study
+  label: Object
+  data:
+    fields:
+      Attribution: String
+      DataAccessAuthority: String
+      ExternalID: String
+      ID: String
+      InvestigatorID: String
+      Name: String
+      UUID: String
+      Version: String
+- gid: StudyFile
+  label: Object
+  data:
+    fields:
+      FileName: String
+      ID: String
+      StudyID: String
+      UUID: String
+
+edges:
+- label: field
+  from: root
+  to: Study
+  data:
+    name: Study
+    type: idQuery
+- label: field
+  from: root
+  to: Workflow
+  data:
+    name: Workflow
+    type: idQuery
+- label: field
+  from: root
+  to: Study
+  data:
+    name: StudyIds
+    type: idList
+- label: field
+  from: root
+  to: Workflow
+  data:
+    name: WorkflowIds
+    type: idList
+- label: field
+  from: Study
+  to: Participant
+  data:
+    name: Participant
+    label: Participant to Study
+- label: field
+  from: Participant
+  to: Sample
+  data:
+    name: Sample
+    label: Sample to Participant
+- label: field
+  from: Workflow
+  to: WorkflowRun
+  data:
+    name: WorkflowRun
+    label: WorkflowRun to Workflow
+- label: field
+  from: WorkflowRun
+  to: StepRun
+  data:
+    name: StepRun
+    label: StepRun to WorkflowRun
+- label: field
+  from: StepRun
+  to: Task
+  data:
+    name: Task
+    label: Task to StepRun
+- label: field
+  from: Workflow
+  to: Step
+  data:
+    name: Step
+    label: Step to Workflow
