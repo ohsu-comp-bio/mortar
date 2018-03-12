@@ -178,6 +178,13 @@ edges:
 
 - label: field
   from: root
+  to: Study
+  data:
+    name: StudyIds
+    type: idList
+
+- label: field
+  from: root
   to: Aliquot
   data:
     name: Aliquot
@@ -231,6 +238,13 @@ edges:
   data:
     name: Participant
     type: idQuery
+
+- label: field
+  from: root
+  to: Participant
+  data:
+    name: ParticipantIds
+    type: idList
 
 - label: field
   from: root
