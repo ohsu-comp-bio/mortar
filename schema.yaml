@@ -16,6 +16,7 @@ vertices:
       ShipmentOrigin: String
       UUID: String
       Volume: Float
+
 - gid: Demographic
   label: Object
   data:
@@ -27,6 +28,7 @@ vertices:
       ParticipantID: String
       Race: String
       UUID: String
+
 - gid: Diagnosis
   label: Object
   data:
@@ -38,6 +40,7 @@ vertices:
       ParticipantID: String
       TumorLocation: String
       UUID: String
+
 - gid: FamilyRelationship
   label: Object
   data:
@@ -48,6 +51,7 @@ vertices:
       RelativeID: String
       RelativeToParticipantRelation: String
       UUID: String
+
 - gid: GenomicFile
   label: Object
   data:
@@ -61,6 +65,7 @@ vertices:
       MD5sum: String
       SequencingExperimentID: String
       UUID: String
+
 - gid: Investigator
   label: Object
   data:
@@ -69,6 +74,7 @@ vertices:
       Institution: String
       Name: String
       UUID: String
+
 - gid: Outcome
   label: Object
   data:
@@ -78,6 +84,7 @@ vertices:
       ParticipantID: String
       UUID: String
       VitalStatus: String
+
 - gid: Participant
   label: Object
   data:
@@ -89,6 +96,7 @@ vertices:
       IsProband: Boolean
       StudyID: String
       UUID: String
+
 - gid: Phenotype
   label: Object
   data:
@@ -99,6 +107,7 @@ vertices:
       ParticipantID: String
       Phenotype: String
       UUID: String
+
 - gid: Sample
   label: Object
   data:
@@ -111,6 +120,7 @@ vertices:
       TissueType: String
       TumorDescriptor: String
       UUID: String
+
 - gid: SequencingExperiment
   label: Object
   data:
@@ -131,6 +141,7 @@ vertices:
       Platform: String
       TotalReads: Float
       UUID: String
+
 - gid: Study
   label: Object
   data:
@@ -143,6 +154,7 @@ vertices:
       Name: String
       UUID: String
       Version: String
+
 - gid: StudyFile
   label: Object
   data:
@@ -153,6 +165,10 @@ vertices:
       UUID: String
 
 edges:
+
+###################################
+# Model to root query
+
 - label: field
   from: root
   to: Study
@@ -160,38 +176,41 @@ edges:
     name: Study
     type: idQuery
 
-
-
 - label: field
   from: root
   to: Aliquot
   data:
     name: Aliquot
     type: idQuery
+
 - label: field
   from: root
   to: Demographic
   data:
     name: Demographic
     type: idQuery
+
 - label: field
   from: root
   to: Diagnosis
   data:
     name: Diagnosis
     type: idQuery
+
 - label: field
   from: root
   to: FamilyRelationship
   data:
     name: FamilyRelationship
     type: idQuery
+
 - label: field
   from: root
   to: GenomicFile
   data:
     name: GenomicFile
     type: idQuery
+
 - label: field
   from: root
   to: Investigator
@@ -234,7 +253,6 @@ edges:
     name: SequencingExperiment
     type: idQuery
 
-
 - label: field
   from: root
   to: StudyFile
@@ -248,7 +266,7 @@ edges:
   data:
     name: Workflow
     type: idQuery
-    type: idList
+
 - label: field
   from: root
   to: Workflow
@@ -256,39 +274,214 @@ edges:
     name: WorkflowIds
     type: idList
 
-- label: field
-  from: Study
-  to: Participant
-  data:
-    name: Participant
-    label: Participant to Study
-- label: field
-  from: Participant
-  to: Sample
-  data:
-    name: Sample
-    label: Sample to Participant
+
+###################################
+# Model to model relationships
+
 - label: field
   from: Workflow
   to: WorkflowRun
   data:
     name: WorkflowRun
     label: WorkflowRun to Workflow
+
 - label: field
   from: WorkflowRun
   to: StepRun
   data:
     name: StepRun
     label: StepRun to WorkflowRun
+
 - label: field
   from: StepRun
   to: Task
   data:
     name: Task
     label: Task to StepRun
+
 - label: field
   from: Workflow
   to: Step
   data:
     name: Step
     label: Step to Workflow
+
+#Aliquot to Sample
+- label: field
+  from: Aliquot
+  to: Sample
+  data:
+    name: Sample
+    label: Aliquot to Sample
+
+- label: field
+  from: Sample
+  to: Aliquot
+  data:
+    name: Aliquot
+    label: Aliquot to Sample
+
+#Demographic to Participant
+- label: field
+  from: Demographic
+  to: Participant
+  data:
+    name: Participant
+    label: Demographic to Participant
+
+- label: field
+  from: Participant
+  to: Demographic
+  data:
+    name: Demographic
+    label: Demographic to Participant
+
+#Diagnosis to Participant
+- label: field
+  from: Diagnosis
+  to: Participant
+  data:
+    name: Participant
+    label: Diagnosis to Participant
+
+- label: field
+  from: Participant
+  to: Diagnosis
+  data:
+    name: Diagnosis
+    label: Diagnosis to Participant
+
+#FamilyRelationship to Participant
+- label: field
+  from: FamilyRelationship
+  to: Participant
+  data:
+    name: Participant
+    label: FamilyRelationship to Participant
+
+- label: field
+  from: Participant
+  to: FamilyRelationship
+  data:
+    name: FamilyRelationship
+    label: FamilyRelationship to Participant
+
+#FamilyRelationship to Relative
+- label: field
+  from: FamilyRelationship
+  to: Participant
+  data:
+    name: Relative
+    label: FamilyRelationship to Participant
+
+- label: field
+  from: Participant
+  to: FamilyRelationship
+  data:
+    name: FamilyRelationship
+    label: FamilyRelationship to Participant
+
+#GenomicFile to SequencingExperiment
+- label: field
+  from: GenomicFile
+  to: SequencingExperiment
+  data:
+    name: SequencingExperiment
+    label: GenomicFile to SequencingExperiment
+
+- label: field
+  from: SequencingExperiment
+  to: GenomicFile
+  data:
+    name: GenomicFile
+    label: GenomicFile to SequencingExperiment
+
+#Participant to Study
+- label: field
+  from: Study
+  to: Participant
+  data:
+    name: Participant
+    label: Participant to Study
+
+- label: field
+  from: Participant
+  to: Study
+  data:
+    name: Study
+    label: Participant to Study
+
+#Phenotype to Participant
+- label: field
+  from: Phenotype
+  to: Participant
+  data:
+    name: Participant
+    label: Phenotype to Participant
+
+- label: field
+  from: Participant
+  to: Phenotype
+  data:
+    name: Phenotype
+    label: Phenotype to Participant
+
+#Sample to Participant
+- label: field
+  from: Sample
+  to: Participant
+  data:
+    name: Participant
+    label: Sample to Participant
+
+- label: field
+  from: Participant
+  to: Sample
+  data:
+    name: Sample
+    label: Sample to Participant
+
+#SequencingExperiment to Aliquot
+- label: field
+  from: SequencingExperiment
+  to: Aliquot
+  data:
+    name: Aliquot
+    label: SequencingExperiment to Aliquot
+
+- label: field
+  from: Aliquot
+  to: SequencingExperiment
+  data:
+    name: SequencingExperiment
+    label: SequencingExperiment to Aliquot
+
+#Study to Investigator
+- label: field
+  from: Study
+  to: Investigator
+  data:
+    name: Investigator
+    label: Study to Investigator
+
+- label: field
+  from: Investigator
+  to: Study
+  data:
+    name: Study
+    label: Study to Investigator
+
+#StudyFile to Study
+- label: field
+  from: StudyFile
+  to: Study
+  data:
+    name: Study
+    label: StudyFile to Study
+
+- label: field
+  from: Study
+  to: StudyFile
+  data:
+    name: StudyFile
+    label: StudyFile to Study
