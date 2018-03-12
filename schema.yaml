@@ -1,5 +1,8 @@
 ---
 vertices:
+- gid: root
+  label: Query
+
 - gid: Aliquot
   label: Object
   data:
@@ -156,17 +159,95 @@ edges:
   data:
     name: Study
     type: idQuery
+
+
+
+- label: field
+  from: root
+  to: Aliquot
+  data:
+    name: Aliquot
+    type: idQuery
+- label: field
+  from: root
+  to: Demographic
+  data:
+    name: Demographic
+    type: idQuery
+- label: field
+  from: root
+  to: Diagnosis
+  data:
+    name: Diagnosis
+    type: idQuery
+- label: field
+  from: root
+  to: FamilyRelationship
+  data:
+    name: FamilyRelationship
+    type: idQuery
+- label: field
+  from: root
+  to: GenomicFile
+  data:
+    name: GenomicFile
+    type: idQuery
+- label: field
+  from: root
+  to: Investigator
+  data:
+    name: Investigator
+    type: idQuery
+
+- label: field
+  from: root
+  to: Outcome
+  data:
+    name: Outcome
+    type: idQuery
+
+- label: field
+  from: root
+  to: Participant
+  data:
+    name: Participant
+    type: idQuery
+
+- label: field
+  from: root
+  to: Phenotype
+  data:
+    name: Phenotype
+    type: idQuery
+
+- label: field
+  from: root
+  to: Sample
+  data:
+    name: Sample
+    type: idQuery
+
+- label: field
+  from: root
+  to: SequencingExperiment
+  data:
+    name: SequencingExperiment
+    type: idQuery
+
+
+- label: field
+  from: root
+  to: StudyFile
+  data:
+    name: StudyFile
+    type: idQuery
+
 - label: field
   from: root
   to: Workflow
   data:
     name: Workflow
     type: idQuery
-- label: field
-  from: root
-  to: Study
-  data:
-    name: StudyIds
     type: idList
 - label: field
   from: root
@@ -174,6 +255,7 @@ edges:
   data:
     name: WorkflowIds
     type: idList
+
 - label: field
   from: Study
   to: Participant
