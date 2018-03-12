@@ -164,6 +164,45 @@ vertices:
       StudyID: String
       UUID: String
 
+- gid: Workflow
+  label: Object
+  data:
+    fields:
+      ID: String
+
+- gid: Step
+  label: Object
+  data:
+    fields:
+      ID: String
+      Name: String
+
+- gid: WorkflowRun
+  label: Object
+  data:
+    fields:
+      id: String
+
+- gid: StepRun
+  label: Object
+  data:
+    fields:
+      id: String
+
+- gid: Task
+  label: Object
+  data:
+    fields:
+      id: String
+      state: String
+      name: String
+
+- gid: Container
+  label: Object
+  data:
+    fields:
+      name: String
+
 edges:
 
 ###################################
@@ -269,14 +308,86 @@ edges:
 
 - label: field
   from: root
+  to: Step
+  data:
+    name: Step
+    type: idQuery
+
+- label: field
+  from: root
+  to: WorkflowRun
+  data:
+    name: WorkflowRun
+    type: idQuery
+
+- label: field
+  from: root
+  to: StepRun
+  data:
+    name: StepRun
+    type: idQuery
+
+- label: field
+  from: root
+  to: Task
+  data:
+    name: Task
+    type: idQuery
+
+- label: field
+  from: root
+  to: Container
+  data:
+    name: Container
+    type: idQuery
+
+###################################
+# ID lists
+
+- label: field
+  from: root
   to: Workflow
   data:
     name: WorkflowIds
     type: idList
 
+- label: field
+  from: root
+  to: WorkflowRun
+  data:
+    name: WorkflowRunIds
+    type: idList
 
 ###################################
 # Model to model relationships
+
+- label: field
+  from: WorkflowRun
+  to: GenomicFile
+  data:
+    name: GenomicFile
+    label: WorkflowRun to GenomicFile
+
+- label: field
+  from: GenomicFile
+  to: WorkflowRun
+  data:
+    name: WorkflowRun
+    label: WorkflowRun to GenomicFile
+
+- label: field
+  from: Workflow
+  to: Step
+  data:
+    name: Step
+    label: Step to Workflow
+
+- label: field
+  from: Step
+  to: Workflow
+  data:
+    name: Workflow
+    label: Step to Workflow
 
 - label: field
   from: Workflow
@@ -294,17 +405,24 @@ edges:
 
 - label: field
   from: StepRun
+  to: Step
+  data:
+    name: Step
+    label: StepRun to Step
+
+- label: field
+  from: Step
+  to: StepRun
+  data:
+    name: StepRun
+    label: StepRun to Step
+
+- label: field
+  from: StepRun
   to: Task
   data:
     name: Task
     label: Task to StepRun
-
-- label: field
-  from: Workflow
-  to: Step
-  data:
-    name: Step
-    label: Step to Workflow
 
 #Aliquot to Sample
 - label: field
